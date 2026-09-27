@@ -1,0 +1,14 @@
+name = "synthetic-tma"
+adapter = "synthetic-tma"
+source = "ovarian-10x"
+title = "Synthetic TMA cut from the 10x ovarian development data"
+license = "CC-BY-4.0"
+citation = "Synthetic TMA derived from: 10x Genomics. Xenium Prime FFPE Human Ovarian Cancer. CC BY 4.0."
+synthetic = true
+seed = 17
+core_radius_um = 500.0
+n_sections = 3
+
+[expected]
+n_clusters = 18
+n_sections = 3

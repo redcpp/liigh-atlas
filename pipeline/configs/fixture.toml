@@ -1,0 +1,13 @@
+name = "fixture"
+adapter = "fixture"
+title = "Fixture: a 600 µm window of the 10x ovarian development data cut into 4 small cores"
+license = "CC-BY-4.0"
+citation = "Fixture derived from: 10x Genomics. Xenium Prime FFPE Human Ovarian Cancer. CC BY 4.0."
+synthetic = true
+seed = 5
+he = true
+align_test = true
+core_radius_um = 130.0
+
+[expected]
+n_sections = 1

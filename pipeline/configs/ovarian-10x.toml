@@ -1,0 +1,15 @@
+name = "ovarian-10x"
+adapter = "ovarian-10x"
+title = "Xenium Prime FFPE Human Ovarian Cancer (10x Genomics, development data)"
+license = "CC-BY-4.0"
+citation = "10x Genomics. Xenium Prime FFPE Human Ovarian Cancer (Xenium Prime 5K + 100 custom genes). Dataset, CC BY 4.0. https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-ovarian-cancer"
+synthetic = false
+seed = 20240613
+he = true
+align_test = true
+
+[expected]
+n_cells = 407124
+median_transcripts = 178
+n_clusters = 18
+n_sections = 1
