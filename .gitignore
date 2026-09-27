@@ -2,3 +2,13 @@
 node_modules/
 data/
 .DS_Store
+
+# pipeline / web build outputs (data never enters git)
+.build/
+web/dist/
+web/coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

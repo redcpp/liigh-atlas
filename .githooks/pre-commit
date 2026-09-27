@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Blocks files > 5 MB and data extensions outside fixtures/ (BRIEF §9).
+exec uv run --frozen python scripts/check_repo.py --staged
