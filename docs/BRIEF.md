@@ -109,26 +109,33 @@ https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-ovarian-cancer — 
 407,124 cells (same order as the lab's ~443K), Prime 5K panel + 100 custom genes,
 post-Xenium H&E + alignment CSV, 10x cell-group annotations (the "answer key").
 
-- **Storage `[Diego]`:** the maintainer's internal disk has ~30 GB free. All data lives under `$DATA_ROOT`
-  on an external drive; repo, virtualenv, `node_modules` and browsers stay on the internal disk. Nothing
-  reads or writes data outside `$DATA_ROOT` / `$LAB_DATA_DIR`.
-- **Acquire the minimum** (`make data TIER=…`):
+- **Storage `[Diego]`:** the maintainer's internal disk has ~30 GB free; the external USB hard drive
+  (spinning disk, exFAT) has ~1.7 TB free. All data lives under `$DATA_ROOT` = `/Volumes/AtlasData`, an
+  APFS volume inside a sparse bundle on that drive; repo, virtualenv, `node_modules` and browsers stay on the internal disk. Nothing reads or writes
+  data outside `$DATA_ROOT` / `$LAB_DATA_DIR`. If `$DATA_ROOT` is not mounted, stop and ask; never fall
+  back to the internal disk.
+- **Already acquired by hand `[Diego]`** (before Phase 1), in this layout:
+  `$DATA_ROOT/raw/ovarian-10x/supplemental/` (supplemental files, original 10x names, md5 verified),
+  `$DATA_ROOT/raw/ovarian-10x/outs/` (the `core` and `boundaries` members, extracted from the remote bundle
+  with range requests; `analysis.tar.gz` unpacked; optionally the Xenium Explorer members),
+  `$DATA_ROOT/raw/ovarian-10x/members.txt` (every bundle member with its size) and `urls.env` (download
+  URLs). The full ZIP is not downloaded. `make data` must be idempotent: verify what exists, download
+  nothing that is present.
+- **Measured bundle composition:** 26.9 GB uncompressed. 93% is morphology images (`morphology.ome.tif`
+  13.3 GB, `morphology_focus/` 5.0 GB) and transcripts (`transcripts.zarr.zip` 4.5 GB,
+  `transcripts.parquet` 2.2 GB). Members sit at the ZIP root (no `outs/` prefix).
+- **What the pipeline reads** (tiers; `make data TIER=…` verifies them):
 
 | Tier | Files | Size | Unlocks |
 |---|---|---|---|
 | `meta` | Supplemental: Cell Groups CSV, Gene Groups CSV, H&E Image Alignment CSV, Pathology Annotation GeoJSON | ~17 MB | Annotations, gene sets, alignment, pathology regions |
-| `core` | From the full bundle ZIP, only: `cells.parquet`, `cell_feature_matrix.h5`, analysis outputs (UMAP + clustering), `metrics_summary.csv`, `gene_panel.json`, `experiment.xenium`, `analysis_summary.html` | est. 0.5–1.5 GB | Phases 1–2 |
+| `core` | From `outs/`: `cells.parquet`, `cell_feature_matrix.h5`, analysis outputs (UMAP + clustering), `metrics_summary.csv`, `gene_panel.json`, `experiment.xenium`, `analysis_summary.html` | ~0.22 GB (measured) | Phases 1–2 |
 | `he` | Supplemental: Post-Xenium H&E Image (OME-TIFF) | 3.58 GB | Phase 3, alignment test |
-| `boundaries` | From the bundle: `cell_boundaries.parquet`, `nucleus_boundaries.parquet` | est. 0.5–1.5 GB | FR-C6 (Could) |
+| `boundaries` | From `outs/`: `cell_boundaries.parquet`, `nucleus_boundaries.parquet` | ~68 MB (measured) | FR-C6 (Could) |
 
-- **Never download:** the full bundle as a whole (26.7 GB zipped, roughly double once extracted), the
-  Xenium Explorer subset (10.2 GB, dominated by `transcripts.zarr.zip` and `morphology_focus/`),
-  `transcripts.*`, `morphology_focus/`, the Annotated H&E (3.38 GB).
-- **How:** extract single members from the remote full-bundle ZIP with HTTP range requests (e.g. Python
-  `remotezip`) after confirming the server answers `Accept-Ranges: bytes`. First step: list the members
-  with sizes, without downloading. Integrity: CRC-32 per ZIP member (checked on extraction) and the md5
-  below for supplemental files. Fallback if ranges are unsupported: download the full ZIP to `$DATA_ROOT`,
-  verify its md5, extract the `core` members, delete the ZIP.
+- **Never read by the pipeline** (even if present on disk): `transcripts.*` (Won't v1), `morphology*`,
+  `*.zarr.zip` (Xenium Explorer formats, kept only to open the dataset in Xenium Explorer as the reference
+  for what the lab sees today). The pipeline logs every raw file it opens.
 - **md5 (from the 10x page):** full bundle `edbf9a9db5f4da314e085ae124218042` · Cell Groups
   `f347e1000f6cd8e41c11a828b381124e` · Gene Groups `b6959cec0b36ecaf57d4c9124973e535` · H&E OME-TIFF
   `020f19937fa449d7ca313d19a2efe637` · Alignment CSV `232cb2b1eed0687c260d425dd24c25f1` · Pathology

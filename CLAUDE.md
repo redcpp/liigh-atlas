@@ -10,8 +10,11 @@ Current state: `PROGRESS.md`. Phase conditions and order: `GOALS.md`.
 - `make dev` · `make test` · `make e2e` · `make bench` · `make figures` · `make verify` · `make build`
 
 ## Data locations
-- Dev data: `$DATA_ROOT` (external drive). Lab data: `$LAB_DATA_DIR` (encrypted volume). Both outside the repo.
-- The internal disk has ~30 GB free: never download the full 10x bundle; follow the tiers in BRIEF §4.2.
+- Dev data: `$DATA_ROOT` = `/Volumes/AtlasData` (APFS sparse bundle on the external HDD), already acquired by hand (BRIEF §4.2).
+- Lab data: `$LAB_DATA_DIR` (encrypted volume, Phase 4 only). Both outside the repo.
+- If `$DATA_ROOT` is not mounted: stop and ask the maintainer to run `hdiutil attach`. Never fall back to the internal disk.
+- The internal disk has ~30 GB free: never write data there. The needed 10x files are already in `$DATA_ROOT` (BRIEF §4.2);
+  the pipeline reads only those tiers, never `transcripts.*`, `morphology*` or `*.zarr.zip`.
 
 ## Hard rules
 1. Lab data never enters git, CI, logs, screenshots, snapshots or public builds. Print only aggregate counts.
