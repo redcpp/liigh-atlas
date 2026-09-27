@@ -153,3 +153,25 @@ config, not in code.
 `group`, `color`) → clusters · UMAP: `analysis/umap/gene_expression_2_components/projection.csv` (`Barcode`,
 `UMAP-1`, `UMAP-2`) or the seeded scanpy recompute cached in `$DATA_ROOT/derived/`, whichever scores
 higher on kNN cluster coherence (TECH_SPEC §2) · H&E Image Alignment CSV → `affine` · `experiment.xenium` → `pixel_size`.
+
+## 10. Phase 1 implementation notes
+
+Findings from building the adapters on the dev data (`[Diego]` review at the Phase 1 gate):
+
+- **Zero-transcript cells.** 513 of the 407,124 cells have 0 transcripts and are absent from both the
+  10x Cell Groups CSV and the provided UMAP. They are kept (the 10x metrics count them), assigned to
+  10x's own `Unassigned` group, and placed at the median UMAP position of that group in whichever
+  embedding wins. Both UMAP candidates are scored on the 406,611 cells they share. The count is in
+  `dataset.provenance.umap.zero_transcript_cells_placed_at_group_median`.
+- **Storage of vector fields.** In canonical tables `center_um`, `bbox`, `bounds_um` are stored as flat
+  float columns (`center_x_um`, `bbox_x0`, …) so pandera can type-check them; the assets
+  (`cores.json`, `sections.json`) expose them as arrays as specified above.
+- **Fixture.** `fixture` is a 600 µm window of `ovarian-10x` cut into 4 cores of radius 130 µm (one
+  patient with 2 cores) with the matching H&E crop and its alignment, instead of a subset of
+  `synthetic-tma`: synthetic cores are moved onto a TMA grid, so their H&E would need a per-core
+  transform (Phase 3). Its `n_transcripts` is the row sum over its 150-gene subset.
+- **Synthetic H&E.** `synthetic-tma` and `scale` have no H&E yet (`he_image` null → "H&E not
+  available"). Phase 3 adds a per-core source offset so each synthetic core can reuse its crop of the
+  dev H&E.
+- **Quantization values** live in `sections.json` (`xy_offset`, `xy_scale` per section) and in the
+  manifest entry of `cells/umap.u16` (`offset`, `scale` per axis).

@@ -5,52 +5,81 @@ deadline (~March 2027).
 
 ## Phase
 
-**Phase 0 — documents before code** (goal `g0-docs`, branch `phase-0-docs`). Gate 0 decisions applied;
-`scripts/check_docs.py` green. Phase 1 not started (on hold until the maintainer starts `g1-pipeline`).
+**Phase 1 — foundation + pipeline on development data** (goal `g1-pipeline`, branch `phase-1-pipeline`).
+All exit criteria in `docs/ROADMAP.md` met on the dev data; waiting for the maintainer gate
+(re-derive µm → H&E px for 3 cells, read `docs/learn/02-pipeline.md`).
 
 ## Done
 
-- Phase 0 deliverables: PRD, TECH_SPEC, DATA_CONTRACT, ADRs 0001–0008, TEST_PLAN, ROADMAP,
-  OPEN_QUESTIONS, `docs/learn/00-domain.md`, `docs/learn/01-docs-check.md`, `scripts/check_docs.py`.
-- **Gate 0 applied** (`[Diego]`):
-  1. ADR-0002 accepted with conditions: per-section spatial and per-axis UMAP quantization with
-     offset + scale in the manifest; T-PIPE-QUANT-01 asserts ≤ 0.5 µm and ≤ 0.1% of UMAP range; URLs and
-     exports use physical units only (ADR-0005 updated: lasso vertices and camera in µm / UMAP units;
-     new T-WEB-URL-03; AC-FR-G7.1 requires physical-unit labels).
-  2. ADR-0004 accepted with conditions: Lanczos resampling at ≤ source pixel size; manifest keeps the
-     source affine (`affine_source` in DATA_CONTRACT) and source pixel size; new T-PIPE-ALIGN-02 runs
-     the alignment test on the pre-aligned pyramid. The H&E pyramid build moved from Phase 3 to Phase 1.
-  3. User stories stay M; NFR-9 M → S (PRD changelog 0.2).
-  4. Dev UMAP: kNN cluster-coherence (15 neighbours) on the provided vs a seeded scanpy UMAP; higher
-     wins; recompute cached under `$DATA_ROOT/derived/` with parameters and hash. Added to TECH_SPEC §2,
-     DATA_CONTRACT provenance, T-PIPE-UMAP-01 and Phase 1 exit criterion 9.
-  5. Nothing sent to the lab. OPEN_QUESTIONS now has a "Meeting agenda" (Phase 4 group first) for the
-     in-person meeting after Phase 3, and a "Deployment step — Jair" list (Q8, Q13) for Phase 6.
-     Q5's blocker reworded to "public lab build" (Phase 4 itself runs privately under the default).
-  `check_docs.py` now enforces the agenda: Jair's open items under Deployment step, every other open
-  item on the agenda, and every open item that blocks Phase 4 in the first group.
+- Monorepo scaffolding: `pipeline/` (package `atlas_pipeline`), `web/` (Vite + React + TS strict,
+  eslint, prettier, vitest; scaffolding only), `scripts/check_repo.py`, `fixtures/fixture/`,
+  `.github/workflows/verify.yml`, `.githooks/pre-commit`, `Makefile`.
+- `make data`: md5 for supplemental, size vs `members.txt` for `outs/`, downloads only what is
+  missing (HTTP range extraction of single ZIP members). Idempotent: 13 files checked, 0 downloaded.
+- Open-guard + raw-file log: every run prints the files it opened; none is `transcripts.*`,
+  `morphology*` or `*.zarr.zip`.
+- Adapters `ovarian-10x`, `synthetic-tma`, `scale`, `fixture`; pandera + cross-entity validation
+  (27 checks) with config totals.
+- Dev UMAP selection (T-PIPE-UMAP-01): provided 0.7911 vs recomputed 0.6919 → provided; recompute
+  cached in `$DATA_ROOT/derived/ovarian-10x/` and reused ("cache hit").
+- Assets: uint16 quantized coordinates (T-PIPE-QUANT-01: 0.088 µm spatial, 7.6e-6 of UMAP range),
+  per-gene sparse/dense uint8 expression, JSON tables, Merkle-style manifest, release = sha256[:12].
+- H&E pyramid (ADR-0004 conditions): Lanczos4 at 0.270 µm/px (source 0.274), 8 levels, 6,652 WebP
+  tiles; source affine + source pixel size in `sections.json`.
+- Alignment: T-PIPE-ALIGN-01 d = 1.379, p = 5.1e-177; T-PIPE-ALIGN-02 d = 1.361, p = 1.1e-173;
+  negative control (25 µm shift) d ≈ 0.26. Criteria fixed before the first run: p < 1e-6, d ≥ 0.8.
+- Reproducibility (T-PIPE-REPRO-01): two ovarian-10x runs → release `681e291a3964`, 11,767 files,
+  0 differing.
+- Tests: 53 pytest tests (data-marked ones skip without `$DATA_ROOT`), pipeline coverage 92% with
+  data, 87% without (CI); vitest scaffold test; ruff, mypy strict, eslint, tsc clean.
+- Docs: ADR-0009 (direct Xenium readers + OpenCV Lanczos, *Proposed*), `docs/learn/02-pipeline.md`,
+  DATA_CONTRACT §10 (Phase 1 notes).
+
+## Findings worth a look at the gate
+
+1. **513 zero-transcript cells** are missing from the 10x Cell Groups CSV and the provided UMAP. Kept
+   (10x counts them in 407,124), labelled `Unassigned` (10x's own group), placed at that group's UMAP
+   median. Alternative: drop them and change the expected count — not done, it contradicts the 10x
+   metrics check.
+2. **Alignment test design fix.** First fixture run used an Otsu tissue mask; on a crop with no
+   background Otsu split nuclei from stroma, biasing the random points. Replaced by a fixed
+   brightfield background threshold (block-averaged gray < 220 at ~10 µm/px). The pass criteria
+   were not changed.
+3. **Fixture** is a 600 µm window of the dev data with its H&E crop (not a subset of
+   `synthetic-tma`), so CI can run the H&E and alignment tests. Reason in DATA_CONTRACT §10.
+4. **synthetic-tma / scale have no H&E yet**: synthetic cores are moved onto a TMA grid, so they need
+   a per-core source offset (Phase 3 scope).
+5. **Scale sub-cluster colours** are a darker shade of the parent — placeholder until the NFR-7
+   palette (T-PIPE-PALETTE-01, Phase 2).
+6. Precompressed `.gz` assets (ADR-0002/0003) are left to `make build` (Phase 6).
 
 ## Next
 
-1. Maintainer starts Phase 1 (`g1-pipeline`) when ready; exit criteria in `docs/ROADMAP.md` now include
-   T-PIPE-ALIGN-02, T-PIPE-QUANT-01 and T-PIPE-UMAP-01 beyond the goal text in `GOALS.md`.
-2. Questions stay held: lab agenda at the in-person meeting after Phase 3; Jair's at deployment.
+1. Maintainer gate: re-derive µm → H&E px for 3 cells (table in `docs/learn/02-pipeline.md`),
+   review ADR-0009.
+2. Phase 2 (`g2-umap`): web data layer, state/URL codec, UMAP Atlas, palette, e2e + bench.
 
 ## Blockers
 
-- None for Phase 1. Phase 4 waits on the lab handoff (meeting agenda group 1). Deployment details wait
-  on Jair (Q8 confirmation, Q13). A public repo/demo waits on Dany (Q10).
+- None for Phase 2. Phase 4 waits on the lab handoff (meeting agenda group 1). Deployment details wait
+  on Jair (Q8, Q13). A public repo/demo waits on Dany (Q10).
 
 ## Decisions needed
 
-1. **ADR-0001** (build a custom React + deck.gl app; no Vitessce, no Viv): still *Proposed*; Gate 0 did
-   not mention it. Accept?
-2. **ADR-0008** (public tool + private overlay; repo private until Q10): still *Proposed*. Accept?
-3. ADR-0003, ADR-0005, ADR-0006, ADR-0007 remain *Proposed*; ADR-0005 was edited only to apply the
-   Gate 0 physical-units condition.
-4. `GOALS.md` g1 text does not mention the Gate 0 additions (pyramid alignment test, quantization test,
-   UMAP selection). ROADMAP carries them; update the goal text too if the evaluator should check them.
+1. **ADR-0009** (read Xenium files directly instead of spatialdata-io; OpenCV for Lanczos): Proposed.
+2. Carried over: ADR-0001, ADR-0003, ADR-0005, ADR-0006, ADR-0007, ADR-0008 still *Proposed*.
+3. Zero-transcript cells (finding 1): keep as done, or drop them?
 
 ## Verification (last run)
 
-See the transcript of this turn: `uv run python scripts/check_docs.py` (exit 0).
+See the transcript of this turn: `make setup`, `make data TIER=meta,core,he`,
+`make pipeline DATASET=ovarian-10x|synthetic-tma|scale`, `make repro DATASET=ovarian-10x`,
+`make test`, `make verify`, `git ls-files` check, `du -sh`.
+
+## Measured numbers (dev data, spinning-disk external drive)
+
+| Dataset | Cells | Genes | Clusters | Sections / cores / patients | Assets | Build time |
+|---|---|---|---|---|---|---|
+| ovarian-10x | 407,124 (median 178 tx) | 5,101 | 18 | 1 / 1 region / 1 | 402.3 MB (11,766 files) | ≈ 2.5 min |
+| synthetic-tma | 174,841 | 5,101 | 18 | 3 / 38 / 27 | 75.3 MB | 24 s |
+| scale | 447,694 | 5,101 | 23 | 3 / 100 / 62 | 181.4 MB | 45 s |
