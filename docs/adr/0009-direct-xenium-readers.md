@@ -34,5 +34,4 @@ full ovarian-10x build ≈ 2.5 min including the 8-level pyramid (42,852 × 29,8
 - OpenCV's Lanczos kernel does not anti-alias, so the builder pre-shrinks with area averaging when
   the output pixel is > 1.25× the source pixel (`he.render`).
 
-**Building block:** ETL / batch processing pipeline (extract through audited readers, transform, load
-immutable assets).
+**Building block:** batch ETL pipeline (audited extract, transform, load into immutable object storage).
