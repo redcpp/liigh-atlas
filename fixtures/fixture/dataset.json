@@ -1,0 +1,16 @@
+{
+ "provenance": {
+  "derived_from": "ovarian-10x",
+  "genes": "top 150 by detection in the window",
+  "he_crop_origin_px": [
+   14648,
+   4763
+  ],
+  "n_transcripts": "row sum over the fixture's gene subset",
+  "window_origin_um": [
+   1200.0,
+   3600.0
+  ],
+  "window_um": 600.0
+ }
+}
