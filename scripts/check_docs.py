@@ -103,7 +103,7 @@ def section(text: str, heading_re: str) -> str:
     if not m:
         return ""
     level = len(m.group(1))
-    rest = text[m.end():]
+    rest = text[m.end() :]
     end = re.search(rf"^#{{1,{level}}}\s", rest, re.MULTILINE)
     return rest[: end.start()] if end else rest
 
@@ -120,14 +120,21 @@ def check_deliverables() -> Result:
     adrs = {p.name[:4]: p for p in (DOCS / "adr").glob("[0-9][0-9][0-9][0-9]-*.md")}
     missing += [f"docs/adr/{n}-*.md" for n in ADR_NUMBERS if n not in adrs]
     missing += ["scripts/check_docs.py"] if not (ROOT / "scripts" / "check_docs.py").is_file() else []
-    return Result("Phase 0 deliverables exist (BRIEF §10)", not missing, [f"missing: {m}" for m in missing]
-                  or [f"{len(DELIVERABLES)} documents + ADRs {ADR_NUMBERS[0]}-{ADR_NUMBERS[-1]}"])
+    return Result(
+        "Phase 0 deliverables exist (BRIEF §10)",
+        not missing,
+        [f"missing: {m}" for m in missing]
+        or [f"{len(DELIVERABLES)} documents + ADRs {ADR_NUMBERS[0]}-{ADR_NUMBERS[-1]}"],
+    )
 
 
 def check_brief_unchanged() -> Result:
     proc = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", "docs/BRIEF.md"], cwd=ROOT, check=False)
-    return Result("docs/BRIEF.md unchanged vs HEAD", proc.returncode == 0,
-                  ["git diff HEAD -- docs/BRIEF.md is empty"] if proc.returncode == 0 else ["BRIEF.md was modified"])
+    return Result(
+        "docs/BRIEF.md unchanged vs HEAD",
+        proc.returncode == 0,
+        ["git diff HEAD -- docs/BRIEF.md is empty"] if proc.returncode == 0 else ["BRIEF.md was modified"],
+    )
 
 
 def check_prd_ids() -> Result:
@@ -152,10 +159,16 @@ def check_prd_ids() -> Result:
         if not tags:
             problems.append(f"{rid}: no source tag in PRD row")
         elif tags != btags and rid not in changelog:
-            problems.append(f"{rid}: source tags {sorted(btags)} in BRIEF vs {sorted(tags)} in PRD without a changelog entry")
+            problems.append(
+                f"{rid}: source tags {sorted(btags)} in BRIEF vs {sorted(tags)} in PRD without a changelog entry"
+            )
     extra = sorted(set(prd) - set(brief))
-    details = problems or [(f"{len(brief)} IDs in BRIEF ({counts['US']} US, {counts['FR']} FR, {counts['NFR']} NFR); "
-                            "all present in PRD with priority and matching source tags")]
+    details = problems or [
+        (
+            f"{len(brief)} IDs in BRIEF ({counts['US']} US, {counts['FR']} FR, {counts['NFR']} NFR); "
+            "all present in PRD with priority and matching source tags"
+        )
+    ]
     if extra:
         details.append(f"PRD-only IDs (allowed, must be in changelog): {extra}")
         problems += [f"{e}: PRD-only ID missing from changelog" for e in extra if e not in changelog]
@@ -175,8 +188,11 @@ def check_acceptance() -> Result:
         n_ac += len(gwt)
         if not gwt:
             problems.append(f"{rid}: no Given/When/Then acceptance criterion (AC-{rid}.N)")
-    return Result("Every Must/Should has >= 1 Given/When/Then criterion", not problems,
-                  problems or [f"{n_ms} Must/Should IDs, {n_ac} Given/When/Then criteria"])
+    return Result(
+        "Every Must/Should has >= 1 Given/When/Then criterion",
+        not problems,
+        problems or [f"{n_ms} Must/Should IDs, {n_ac} Given/When/Then criteria"],
+    )
 
 
 def check_traceability() -> Result:
@@ -202,13 +218,19 @@ def check_traceability() -> Result:
     for kind in catalog.values():
         by_type[kind] = by_type.get(kind, 0) + 1
     summary = ", ".join(f"{k} {v}" for k, v in sorted(by_type.items()))
-    return Result("Every ID maps to >= 1 test in TEST_PLAN", not problems,
-                  problems or [f"{len(brief)} IDs mapped; {len(catalog)} tests in catalog ({summary})"])
+    return Result(
+        "Every ID maps to >= 1 test in TEST_PLAN",
+        not problems,
+        problems or [f"{len(brief)} IDs mapped; {len(catalog)} tests in catalog ({summary})"],
+    )
 
 
 def check_dates() -> Result:
-    files = [p for p in DELIVERABLES if p.is_file()] + sorted((DOCS / "adr").glob("*.md")) + sorted(
-        (DOCS / "learn").glob("*.md"))
+    files = (
+        [p for p in DELIVERABLES if p.is_file()]
+        + sorted((DOCS / "adr").glob("*.md"))
+        + sorted((DOCS / "learn").glob("*.md"))
+    )
     files = list(dict.fromkeys(files))
     hits, allowed = [], 0
     for path in files:
@@ -218,8 +240,11 @@ def check_dates() -> Result:
             for pat in DATE_PATTERNS:
                 for m in pat.finditer(stripped):
                     hits.append(f"{path.relative_to(ROOT)}:{n}: '{m.group(0)}'")
-    return Result("No calendar dates except the final deadline", not hits,
-                  hits or [f"{len(files)} files scanned; only the deadline appears ({allowed} mentions)"])
+    return Result(
+        "No calendar dates except the final deadline",
+        not hits,
+        hits or [f"{len(files)} files scanned; only the deadline appears ({allowed} mentions)"],
+    )
 
 
 def check_open_questions() -> Result:
@@ -228,8 +253,10 @@ def check_open_questions() -> Result:
     header = next((r for r in rows if r and r[0].lower() == "id"), None)
     if header is None:
         return Result("Open questions complete", False, ["no table with an 'ID' header"])
-    cols = {name: next((i for i, h in enumerate(header) if name in h.lower()), -1)
-            for name in ("recipient", "blocks", "status", "default")}
+    cols = {
+        name: next((i for i, h in enumerate(header) if name in h.lower()), -1)
+        for name in ("recipient", "blocks", "status", "default")
+    }
     if -1 in cols.values():
         return Result("Open questions complete", False, [f"missing columns: {[k for k, v in cols.items() if v < 0]}"])
     qs = {r[0].strip("`* "): r for r in rows if re.fullmatch(r"Q\d+", r[0].strip("`* "))}
@@ -253,13 +280,24 @@ def check_open_questions() -> Result:
         where, body = ("Deployment step", deploy) if who == {"Jair"} else ("Meeting agenda", agenda)
         if not re.search(rf"\b{q}\b", body):
             problems.append(f"{q}: not in '{where}'")
-        if where == "Meeting agenda" and r[cols["blocks"]].strip().startswith("Phase 4") and \
-                not re.search(rf"\b{q}\b", first_group):
+        if (
+            where == "Meeting agenda"
+            and r[cols["blocks"]].strip().startswith("Phase 4")
+            and not re.search(rf"\b{q}\b", first_group)
+        ):
             problems.append(f"{q}: blocks Phase 4 but is not in the first agenda group")
-    return Result("Every open question has recipient, blocker, status and default; agenda ordered", not problems,
-                  problems or [(f"{len(qs)} questions (Q1-Q{len(qs)}), {n_open} open; meeting agenda groups: "
-                                f"{' → '.join(h.split('—')[0].strip() for h in subsections)}; "
-                                "Jair's items under Deployment step")])
+    return Result(
+        "Every open question has recipient, blocker, status and default; agenda ordered",
+        not problems,
+        problems
+        or [
+            (
+                f"{len(qs)} questions (Q1-Q{len(qs)}), {n_open} open; meeting agenda groups: "
+                f"{' → '.join(h.split('—')[0].strip() for h in subsections)}; "
+                "Jair's items under Deployment step"
+            )
+        ],
+    )
 
 
 def check_adrs() -> Result:
@@ -283,19 +321,50 @@ def check_adrs() -> Result:
                     problems.append(f"{name}: options not compared against {rid}")
             if not re.search(r"^##\s+Decision\s*\n+\s*\*\*", text, re.MULTILINE):
                 problems.append(f"{name}: Decision must open with a bold one-line decision")
-    return Result("ADRs: sections, one page, building block; 0001 compares FR-T1/FR-C3/FR-G6/NFR-16", not problems,
-                  problems or [f"words per ADR: {words} (max {ADR_MAX_WORDS})"])
+    return Result(
+        "ADRs: sections, one page, building block; 0001 compares FR-T1/FR-C3/FR-G6/NFR-16",
+        not problems,
+        problems or [f"words per ADR: {words} (max {ADR_MAX_WORDS})"],
+    )
 
 
 def check_sections() -> Result:
     required: dict[Path, list[str]] = {
-        PRD: ["Problem", "Goals", "Personas", "User stories", "Functional requirements",
-              "Non-functional requirements", "Acceptance criteria", "Definition of polish", "Success metrics",
-              "Risks", "Changelog"],
-        TECH_SPEC: ["Architecture", "Pipeline", "Asset format", "Web architecture", "Performance plan", "Testing",
-                    "Deployment", "Privacy", "Failure modes"],
-        DATA_CONTRACT: ["cells", "genes", "expression", "clusters", "cores", "sections", "dataset",
-                        "Adapter interface", "Validation"],
+        PRD: [
+            "Problem",
+            "Goals",
+            "Personas",
+            "User stories",
+            "Functional requirements",
+            "Non-functional requirements",
+            "Acceptance criteria",
+            "Definition of polish",
+            "Success metrics",
+            "Risks",
+            "Changelog",
+        ],
+        TECH_SPEC: [
+            "Architecture",
+            "Pipeline",
+            "Asset format",
+            "Web architecture",
+            "Performance plan",
+            "Testing",
+            "Deployment",
+            "Privacy",
+            "Failure modes",
+        ],
+        DATA_CONTRACT: [
+            "cells",
+            "genes",
+            "expression",
+            "clusters",
+            "cores",
+            "sections",
+            "dataset",
+            "Adapter interface",
+            "Validation",
+        ],
         TEST_PLAN: ["Test catalog", "Traceability matrix"],
         PROGRESS: ["Phase", "Done", "Next", "Blockers", "Decisions needed"],
     }
@@ -311,9 +380,32 @@ def check_sections() -> Result:
     if not re.search(r"core[- ]open", section(spec, r"\d*\.?\s*Performance plan"), re.IGNORECASE):
         problems.append("TECH_SPEC.md: performance plan lacks a core-open budget")
     contract = read(DATA_CONTRACT)
-    for f in ("cell_id", "section_id", "core_id", "patient_id", "x_um", "y_um", "umap_x", "umap_y", "cluster_id",
-              "n_transcripts", "gene_id", "symbol", "panel", "label", "color", "center_um", "radius_um", "bbox",
-              "affine", "pixel_size", "license", "citation", "provenance", "synthetic"):
+    for f in (
+        "cell_id",
+        "section_id",
+        "core_id",
+        "patient_id",
+        "x_um",
+        "y_um",
+        "umap_x",
+        "umap_y",
+        "cluster_id",
+        "n_transcripts",
+        "gene_id",
+        "symbol",
+        "panel",
+        "label",
+        "color",
+        "center_um",
+        "radius_um",
+        "bbox",
+        "affine",
+        "pixel_size",
+        "license",
+        "citation",
+        "provenance",
+        "synthetic",
+    ):
         if not re.search(rf"`{f}", contract):
             problems.append(f"DATA_CONTRACT.md: minimum field '{f}' (BRIEF §4.4) not defined")
     domain = read(DOMAIN)
@@ -321,9 +413,17 @@ def check_sections() -> Result:
         problems.append("learn/00-domain.md: fewer than 8 concepts with an analogy")
     if not re.search(r"^#+\s+.*re-derive", domain, re.MULTILINE | re.IGNORECASE):
         problems.append("learn/00-domain.md: no 're-derive without notes' section")
-    return Result("Documents contain the sections BRIEF §10 asks for", not problems,
-                  problems or [(f"{sum(len(v) for v in required.values())} required sections, Mermaid diagram, "
-                                "core-open budget, 24 contract fields, domain analogies present")])
+    return Result(
+        "Documents contain the sections BRIEF §10 asks for",
+        not problems,
+        problems
+        or [
+            (
+                f"{sum(len(v) for v in required.values())} required sections, Mermaid diagram, "
+                "core-open budget, 24 contract fields, domain analogies present"
+            )
+        ],
+    )
 
 
 def check_roadmap() -> Result:
@@ -345,8 +445,11 @@ def check_roadmap() -> Result:
                 problems.append(f"Phase {phase}: missing '{part}'")
     if positions != sorted(positions):
         problems.append("phases are not in GOALS.md order")
-    return Result("ROADMAP follows GOALS.md phase order with exit criteria and gates", not problems,
-                  problems or ["phases " + " → ".join(g for p, g in order if p != "0")])
+    return Result(
+        "ROADMAP follows GOALS.md phase order with exit criteria and gates",
+        not problems,
+        problems or ["phases " + " → ".join(g for p, g in order if p != "0")],
+    )
 
 
 CHECKS: list[Callable[[], Result]] = [
