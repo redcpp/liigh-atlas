@@ -1,6 +1,6 @@
 # PRD — Acral Melanoma Spatial Atlas
 
-Version 0.1 (Phase 0). Derived from `docs/BRIEF.md`, which stays read-only; every change after this
+Version 0.2 (Phase 0, Gate 0 decisions applied). Derived from `docs/BRIEF.md`, which stays read-only; every change after this
 version is recorded in the [changelog](#changelog). Source tags follow BRIEF §0:
 `[PDF]` lab's written brief · `[Call]` kickoff meeting · `[Assumption]` inferred, not validated ·
 `[Product]` maintainer's product-quality decision · `[Diego]` maintainer's answer on the lab's behalf.
@@ -118,7 +118,8 @@ MoSCoW: M must · S should · C could (only via ADR) · W won't (v1). Priorities
 
 ## 6. Non-functional requirements
 
-BRIEF §6 gives NFRs no MoSCoW column; all are **M** because their thresholds are acceptance criteria.
+BRIEF §6 gives NFRs no MoSCoW column; all are **M** because their thresholds are acceptance criteria,
+except NFR-9, which is **S** (Gate 0: it depends on Q16 and a manual Zenodo step; see changelog).
 Measurement method for each lives in `docs/TECH_SPEC.md` §7 and `docs/adr/0007-testing-and-performance.md`.
 
 | ID | Requirement | Threshold / how measured | P | Source |
@@ -131,7 +132,7 @@ Measurement method for each lives in `docs/TECH_SPEC.md` §7 and `docs/adr/0007-
 | NFR-6 | Browsers | Latest desktop Chrome, Firefox, Safari; mobile best-effort, read-only | M | `[Assumption]` |
 | NFR-7 | Color | Color-blind-safe palettes; 23-color palette checked under protan/deutan; never color-only encoding | M | `[Assumption]` |
 | NFR-8 | Privacy | Only de-identified data in public builds; lab previews private (plus hard rule BRIEF §4.1) | M | `[Assumption]` |
-| NFR-9 | Citability | Code citable with a DOI (Zenodo) at release | M | `[Assumption]` |
+| NFR-9 | Citability | Code citable with a DOI (Zenodo) at release | S | `[Assumption]` |
 | NFR-10 | Accessibility | WCAG 2.1 AA for UI chrome; axe-core 0 serious/critical; all controls keyboard-operable | M | `[Product]` |
 | NFR-11 | Lighthouse (desktop, main view) | Performance ≥ 85, Accessibility ≥ 95, Best Practices ≥ 95 | M | `[Product]` |
 | NFR-12 | Hygiene | Zero console errors during the e2e suite | M | `[Product]` |
@@ -162,7 +163,7 @@ criteria are judged on `scale` (≥ 443K cells) unless stated. Test IDs are in `
 - **AC-FR-G4.2** Given the visitor types a symbol not in the panel, when they press Enter, then an empty state says the gene is not in the panel and suggests the closest symbols.
 - **AC-FR-G5.1** Given the cluster legend with 23 entries, when the visitor clicks an entry, then that cluster toggles visibility; when they alt-click (or use the isolate button), then only that cluster remains visible; when they hover it, then its cells are highlighted in every view.
 - **AC-FR-G6.1** Given any view state, when it is serialized to the URL and the URL is reloaded, then the deserialized state is identical (round-trip over 20 random states) and the URL is at most 2,000 characters.
-- **AC-FR-G7.1** Given any view, when the visitor exports PNG, then a raster of at least 300 dpi at 180 mm width (≥ 2,126 px) with the same content as the screen is downloaded; when they export SVG, then legend, axes and scale bar are vector.
+- **AC-FR-G7.1** Given any view, when the visitor exports PNG, then a raster of at least 300 dpi at 180 mm width (≥ 2,126 px) with the same content as the screen is downloaded; when they export SVG, then legend, axes and scale bar are vector, labeled in physical units (µm, UMAP units).
 
 ### UMAP Atlas
 - **AC-FR-U1.1** Given the `scale` dataset, when the UMAP Atlas finishes loading, then the number of drawn points equals the dataset cell count (no subsampling), verified from the render layer's instance count.
@@ -252,3 +253,8 @@ criteria are judged on `scale` (≥ 443K cells) unless stated. Test IDs are in `
 | Version | Change | Source |
 |---|---|---|
 | 0.1 | Initial PRD from BRIEF. US and NFR items given priority M (BRIEF assigns none). Tags and FR priorities copied unchanged. | `[Product]` |
+| 0.2 | Gate 0: user stories US-1–US-5 confirmed Must. | `[Diego]` |
+| 0.2 | Gate 0: NFR-9 (DOI) M → S, because it depends on Q16 (citation text) and a manual Zenodo step. Source tag stays `[Assumption]`. | `[Diego]` |
+| 0.2 | Gate 0: ADR-0002 (uint16 coordinates, per-section offset + scale, error test, physical units in URLs and exports) and ADR-0004 (Lanczos pre-aligned H&E, source affine and pixel size in manifest, alignment test on the pyramid) accepted with conditions; AC-FR-G7.1 now requires physical units. | `[Diego]` |
+| 0.2 | Gate 0: dev UMAP chosen in Phase 1 by kNN cluster coherence (provided vs seeded scanpy recompute), recompute cached under `$DATA_ROOT/derived/`. | `[Diego]` |
+| 0.2 | Gate 0: open questions are held for the in-person meeting after Phase 3 (demo-first, BRIEF §1); nothing is sent before. | `[Diego]` |

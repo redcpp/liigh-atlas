@@ -28,7 +28,7 @@ core, patient, or lasso polygon in UMAP coordinates), recomputed deterministical
 
 ```
 /?v=1&ds=ovarian-10x&r=3fa1c09b2e7d&view=core&cores=C012,C044&color=gene:ENSG00000119888
-  &hide=c07,c19&sel=lasso:<quantized polygon>&op=0.6&cam=<x>,<y>,<zoom>
+  &hide=c07,c19&sel=lasso:<x1>_<y1>~<x2>_<y2>~…&op=0.6&cam=<x_um>,<y_um>,<zoom>
 ```
 
 - `v` is the URL schema version; `r` pins the **data release** (manifest hash, ADR-0002). A cited URL
@@ -39,8 +39,10 @@ core, patient, or lasso polygon in UMAP coordinates), recomputed deterministical
 - If `r` is no longer the current release, the app loads that release if it is still hosted (NFR-2
   keeps the previous release); otherwise it opens the current release and shows "This link was made
   with release r; showing the current release".
-- Lasso polygons: ≤ 64 vertices, quantized to uint16 and base64url-encoded; URL length target
-  ≤ 2,000 characters (checked in tests).
+- **Physical units only** (Gate 0): camera centers are in µm (spatial views) or UMAP units (UMAP view),
+  lasso vertices in UMAP units, all as fixed-precision decimals (3 decimals UMAP, 0.1 µm spatial).
+  Asset-level quantized integers never appear in a URL (ADR-0002, T-WEB-URL-03).
+- Lasso polygons: ≤ 64 vertices; URL length target ≤ 2,000 characters (checked in tests).
 - History: camera changes use `replaceState` (debounced 250 ms); view, gene, core and selection
   changes use `pushState`, so Back behaves as users expect.
 - **Fixtures:** `fixtures/urls/v1/*.json` hold URL → expected state pairs; every future release must

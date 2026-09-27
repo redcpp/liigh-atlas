@@ -9,8 +9,9 @@ Reads `docs/BRIEF.md` as the source of truth and checks that the Phase 0 documen
 3. every Must/Should has an `AC-<ID>.N` line containing Given, When and Then;
 4. every ID maps to ≥ 1 test in the TEST_PLAN matrix, and every referenced test is in the catalog;
 5. no calendar dates in any Phase 0 document except the deadline "~March 2027";
-6. every open question has recipient, blocker, status and default, and each open one appears in the
-   batched message for its recipient;
+6. every open question has recipient, blocker, status and default; each open one is on the meeting
+   agenda (Jair's under "Deployment step"), and the agenda's first group is the one that unblocks
+   Phase 4, containing every open question whose blocker is Phase 4;
 7. ADRs have Context/Options/Decision/Consequences, fit one page (≤ 700 words), end with the
    building-block line, and ADR-0001 compares options against FR-T1, FR-C3, FR-G6 and NFR-16;
 8. PRD, TECH_SPEC, DATA_CONTRACT, TEST_PLAN and PROGRESS have the sections BRIEF §10 asks for;

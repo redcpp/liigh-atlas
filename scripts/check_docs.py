@@ -234,22 +234,32 @@ def check_open_questions() -> Result:
         return Result("Open questions complete", False, [f"missing columns: {[k for k, v in cols.items() if v < 0]}"])
     qs = {r[0].strip("`* "): r for r in rows if re.fullmatch(r"Q\d+", r[0].strip("`* "))}
     problems = [f"Q{n}: missing" for n in range(1, 13) if f"Q{n}" not in qs]
-    recipients: set[str] = set()
+    agenda = section(text, r"Meeting agenda")
+    deploy = section(text, r"Deployment step")
+    subsections = re.findall(r"^###\s+(.*)$", agenda, re.MULTILINE)
+    if not subsections or "phase 4" not in subsections[0].lower():
+        problems.append("'## Meeting agenda' must exist and its first '###' group must unblock Phase 4")
+    first_group = section(agenda, re.escape(subsections[0])) if subsections else ""
+    n_open = 0
     for q, r in qs.items():
         if any(i >= len(r) or r[i].strip("`*— -") == "" for i in cols.values()):
             problems += [f"{q}: empty '{n}'" for n, i in cols.items() if i >= len(r) or r[i].strip("`*— -") == ""]
             continue
         if r[cols["status"]].lower().startswith("answered"):
             continue
-        # An open question must be asked in the batched message of (one of) its recipients.
-        who = [w.strip() for w in re.split(r"[/,]", r[cols["recipient"]]) if w.strip()]
-        recipients.update(who)
-        bodies = [section(text, rf"Batched message.*{re.escape(w)}") for w in who]
-        if not any(re.search(rf"\b{q}\b", b) for b in bodies):
-            problems.append(f"{q}: not in the batched message for {' / '.join(who)}")
-    return Result("Every open question has recipient, blocker, status and default", not problems,
-                  problems or [(f"{len(qs)} questions (Q1-Q{len(qs)}); batched messages for: "
-                                f"{', '.join(sorted(recipients))}")])
+        n_open += 1
+        # Jair's items wait for the deployment step; everything else goes on the meeting agenda.
+        who = {w.strip() for w in re.split(r"[/,]", r[cols["recipient"]]) if w.strip()}
+        where, body = ("Deployment step", deploy) if who == {"Jair"} else ("Meeting agenda", agenda)
+        if not re.search(rf"\b{q}\b", body):
+            problems.append(f"{q}: not in '{where}'")
+        if where == "Meeting agenda" and r[cols["blocks"]].strip().startswith("Phase 4") and \
+                not re.search(rf"\b{q}\b", first_group):
+            problems.append(f"{q}: blocks Phase 4 but is not in the first agenda group")
+    return Result("Every open question has recipient, blocker, status and default; agenda ordered", not problems,
+                  problems or [(f"{len(qs)} questions (Q1-Q{len(qs)}), {n_open} open; meeting agenda groups: "
+                                f"{' → '.join(h.split('—')[0].strip() for h in subsections)}; "
+                                "Jair's items under Deployment step")])
 
 
 def check_adrs() -> Result:

@@ -86,8 +86,9 @@ value `expected_clusters` makes the mismatch a failure.
 | `section_id` | string | — | no | unique |
 | `he_image` | string (path relative to the raw root) | — | yes | readable OME-TIFF when present |
 | `affine` | 3×3 float64 | µm → H&E px | yes | invertible; required when `he_image` is set; last row `[0, 0, 1]` |
+| `affine_source` | 3×3 float64 | as provided (10x: H&E px → Xenium px) | yes | the source alignment matrix, verbatim; `affine` is derived from it; both are written to the manifest (Gate 0) |
 | `pixel_size` | float64 | µm / Xenium px | no | dev data: 0.2125 (from `experiment.xenium`) |
-| `he_pixel_size_um` | float64 | µm / H&E px | yes | derived from `affine` (dev: ≈ 0.274) |
+| `he_pixel_size_um` | float64 | µm / H&E px | yes | source H&E pixel size derived from `affine_source` (dev: ≈ 0.274); written to the manifest; the pre-aligned pyramid's pixel size is ≤ this |
 | `bounds_um` | [x0, y0, x1, y1] | µm | no | contains every cell of the section |
 
 `affine` is stored in the direction the pipeline uses (µm → H&E px). For 10x data it is composed as
@@ -102,7 +103,7 @@ alignment matrix (H&E px → Xenium px). The Phase 1 alignment test verifies thi
 | `title` | string | shown in the UI |
 | `license` | string (SPDX) | dev: `CC-BY-4.0`; lab: pending (Q9) |
 | `citation` | string | text shown by "Copy citation" and on the How-to-cite page |
-| `provenance` | record | source URLs, md5s, adapter name + version, normalization, seed, pipeline version |
+| `provenance` | record | source URLs, md5s, adapter name + version, normalization, seed, pipeline version; UMAP source (`provided` \| `recomputed`), both kNN coherence scores, parameters and hash of the cached embedding |
 | `synthetic` | bool | `true` for `synthetic-tma`, `scale`, `fixture`; drives the "Synthetic data" badge (FR-P5) |
 | `visibility` | category: `public` \| `private` | `lab` is `private` until Q5/Q10 say otherwise (NFR-8) |
 | `release` | string | content hash prefix of the manifest; URLs pin it (ADR-0005) |
@@ -149,5 +150,6 @@ config, not in code.
 
 **Source mapping for `ovarian-10x`:** `cells.parquet` (`cell_id`, `x_centroid`, `y_centroid`,
 `transcript_counts`) · `cell_feature_matrix.h5` (counts, features) · Cell Groups CSV (`cell_id`,
-`group`, `color`) → clusters · `analysis/umap/gene_expression_2_components/projection.csv` (`Barcode`,
-`UMAP-1`, `UMAP-2`) · H&E Image Alignment CSV → `affine` · `experiment.xenium` → `pixel_size`.
+`group`, `color`) → clusters · UMAP: `analysis/umap/gene_expression_2_components/projection.csv` (`Barcode`,
+`UMAP-1`, `UMAP-2`) or the seeded scanpy recompute cached in `$DATA_ROOT/derived/`, whichever scores
+higher on kNN cluster coherence (TECH_SPEC §2) · H&E Image Alignment CSV → `affine` · `experiment.xenium` → `pixel_size`.

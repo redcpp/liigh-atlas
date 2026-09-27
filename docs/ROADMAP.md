@@ -1,8 +1,8 @@
 # Roadmap
 
 Phases close on exit criteria, never on a calendar. The only date is the final deadline: paper
-submission ~March 2027. Order and goal files follow `GOALS.md`; the exit criteria below are the ones
-each `/goal` condition checks, and each phase ends at a human gate owned by the maintainer.
+submission ~March 2027. Order and goal files follow `GOALS.md`; the exit criteria below include
+everything each `/goal` condition checks (plus the Gate 0 additions to Phase 1), and each phase ends at a human gate owned by the maintainer.
 Phase 0 (documents, goal `g0-docs`) precedes these and ends at the review of PRD, TECH_SPEC,
 ADR-0001 and ADR-0008.
 
@@ -10,7 +10,8 @@ ADR-0001 and ADR-0008.
 
 **Scope:** monorepo scaffolding (`pipeline/`, `web/` skeleton, `scripts/`, `fixtures/`, `.github/`),
 `make` targets, pre-commit guards, `make data`, adapters `ovarian-10x`, `synthetic-tma`, `scale`,
-`fixture`, canonical validation, asset builders except H&E tiles, alignment test. IDs: FR-R2, NFR-13,
+`fixture`, canonical validation, asset builders including the pre-aligned H&E pyramid (moved here
+from Phase 3 by Gate 0 so the alignment test runs on it), dev UMAP selection, alignment tests. IDs: FR-R2, NFR-13,
 NFR-14, NFR-15 (pipeline part), NFR-8 (guards).
 
 **Exit criteria**
@@ -21,9 +22,16 @@ NFR-14, NFR-15 (pipeline part), NFR-8 (guards).
    gene and cluster counts, sizes per asset family and total.
 4. `synthetic-tma` and `scale` build; `scale` ≥ 443,000 cells, ≥ 100 cores, 62 patients, 3 sections,
    23 clusters.
-5. T-PIPE-ALIGN-01 passes with effect size and p-value printed.
+5. T-PIPE-ALIGN-01 (raw image) and T-PIPE-ALIGN-02 (pre-aligned Lanczos pyramid) pass, each printing
+   effect size and p-value; the manifest holds each section's source affine and source pixel size.
 6. Two runs give identical asset hashes; `make test` passes with pipeline coverage ≥ 85%.
 7. No data files or files > 5 MB tracked outside `fixtures/`; repo < 1 GB excluding caches.
+8. T-PIPE-QUANT-01 prints the max round-trip error: ≤ 0.5 µm spatial (per section), ≤ 0.1% of the UMAP
+   range.
+9. Dev UMAP (T-PIPE-UMAP-01): kNN cluster-coherence scores (15 neighbours sharing the 10x cell group)
+   printed for the provided Xenium UMAP and the seeded scanpy recompute; the higher one is used; the
+   recompute is cached under `$DATA_ROOT/derived/` with its parameters and hash, and a second run reuses
+   it without recomputing.
 
 **Gate:** maintainer re-derives µm → H&E pixels by hand for 3 cells and reads `docs/learn/`.
 Skill milestone M0.
@@ -43,7 +51,7 @@ view. IDs: FR-U1, FR-U2, FR-U3, FR-U4, FR-G3, FR-G4, FR-G5 (plus FR-G1 shell, FR
 
 ## Phase 3 — TMA Map + Core Detail (goal `g3-tma-core`)
 
-**Scope:** H&E warp + tile pyramid + thumbnails, TMA Map, Core Detail, comparison grid, patient grouping,
+**Scope:** H&E tile rendering from the Phase 1 pyramid, TMA Map, Core Detail, comparison grid, patient grouping,
 overlay opacity. IDs: FR-T1, FR-T2, FR-T3, FR-C1, FR-C2, FR-C3, FR-C4, FR-C5.
 
 **Exit criteria**
@@ -54,8 +62,8 @@ overlay opacity. IDs: FR-T1, FR-T2, FR-T3, FR-C1, FR-C2, FR-C3, FR-C4, FR-C5.
 4. axe-core 0 serious/critical; zero console errors; `make verify` exits 0.
 5. `PROGRESS.md` ends with a 5-minute demo script for the lab on dev data.
 
-**Gate:** demo to the lab; schedule the in-person meeting; bring the drive and the handoff list
-(BRIEF §4.1). Skill milestone M3.
+**Gate:** demo to the lab; schedule the in-person meeting; bring the drive, the handoff list
+(BRIEF §4.1) and the meeting agenda in `docs/OPEN_QUESTIONS.md` (questions are held until then). Skill milestone M3.
 
 ## Phase 4 — Lab data (goal `g4-lab-data`)
 
@@ -109,7 +117,8 @@ NFR-14.
 5. `uv run python scripts/check_docs.py` and `make verify` exit 0; `PROGRESS.md` holds a release
    checklist for the maintainer.
 
-**Gate:** the maintainer pushes, deploys the demo (dev data) and hands `docs/DEPLOY.md` to Jair.
+**Gate:** the maintainer pushes, deploys the demo (dev data) and hands `docs/DEPLOY.md` to Jair with
+the deployment-step questions (Q8, Q13) from `docs/OPEN_QUESTIONS.md`.
 Skill milestone M5.
 
 ## After v1

@@ -4,8 +4,10 @@ Seeded from BRIEF §11 (Q1–Q12) plus questions raised in Phase 0 (Q13–Q16). 
 default assumption so work continues behind configuration (BRIEF §0); defaults are `[Assumption]` until
 answered. Recipients: **Estef** (Estefanía Vázquez-Cruz, data and science, daily contact), **Dany**
 (Dra. Daniela Robles-Espinoza, director: scope, paper, publication only), **Jair** (Jair García,
-infrastructure). Questions are sent in one batched message per recipient (below), never one by one.
-Answers are recorded here and in the PRD changelog when they change a requirement.
+infrastructure). **Nothing is sent now** (Gate 0, `[Diego]`): the strategy is demo-first (BRIEF §1), so
+the lab's questions are held for the in-person meeting after the Phase 3 demo (agenda below) and Jair's
+for the deployment step (Phase 6). Answers are recorded here and in the PRD changelog when they change a
+requirement.
 
 | ID | Question | Recipient | Blocks | Status | Default assumption (used meanwhile) |
 |---|---|---|---|---|---|
@@ -13,7 +15,7 @@ Answers are recorded here and in the PRD changelog when they change a requiremen
 | Q2 | One complete Xenium `outs/` per section (selective copy, BRIEF §4.1) | Estef | Phase 4 | Pending — meeting | Standard Xenium Onboard Analysis `outs/` with the files of the handoff list |
 | Q3 | Is the H&E aligned to Xenium? Format and resolution | Estef | Phase 4 (FR-C1, FR-C5 on lab data) | Pending — meeting | A Xenium Explorer alignment CSV exists per section; otherwise landmark registration in Phase 4 |
 | Q4 | Core ↔ sample ↔ patient table; which clinical metadata may be public | Estef | Phase 4 (cores, FR-C4, FR-T3) | Pending — meeting | TMA map provided as CSV; public builds show pseudonymous patient codes and no clinical fields |
-| Q5 | Will all ~443K cells and ~5K genes be published? | Estef / Dany | Phase 4, public release | Pending — meeting | All cells and genes, lab dataset `visibility: private` until confirmed |
+| Q5 | Will all ~443K cells and ~5K genes be published? | Estef / Dany | Public lab build (Phase 4 itself runs privately meanwhile) | Pending — meeting | All cells and genes, lab dataset `visibility: private` until confirmed |
 | Q6 | Journal; site inside the atlas paper or a separate note; raw-data deposit | Dany | Deadline, How-to-cite page | Partial: submission ~March 2027 `[Diego]`; rest open | Site cited from the atlas paper; raw data deposited by the lab separately |
 | Q7 | Priority among the three views | Estef | Phase order | Pending | UMAP first (cheapest, de-risks rendering at scale), then TMA Map + Core Detail |
 | Q8 | Public web server, domain, HTTPS, quota | Jair | Deployment | Answered `[Diego]` → NFR-2 (confirm with Jair before deploy) | nginx on a LIIGH server, `atlas.liigh.unam.mx`, Let's Encrypt, ≥ 10 GB |
@@ -26,34 +28,36 @@ Answers are recorded here and in the PRD changelog when they change a requiremen
 | Q15 | Normalization used for expression in the paper figures (Seurat LogNormalize, SCTransform, other) | Estef | Phase 4 (FR-G3 parity with figures) | Open (new) | `log1p(counts / total × 10⁴)` (Seurat LogNormalize default), configurable |
 | Q16 | Authors and citation text for the site before the paper exists | Dany | FR-P1, FR-P4 content | Open (new) | Cite the software (repo, later Zenodo DOI) with "manuscript in preparation" |
 
-## Batched message — Estef
+## Meeting agenda
 
-> Hola Estef, para cuando nos veamos con los datos del atlas, estas son mis preguntas (todas tienen un
-> supuesto por defecto, así que nada me bloquea hoy):
-> 1. (Q1) ¿Me pasas la tabla de anotación `cell_id, sección, cluster, umap_1, umap_2`? ¿Sale de Seurat o scanpy?
-> 2. (Q2) ¿Puedo copiar de cada sección solo estos archivos de `outs/`? Te llevo la lista y el disco.
-> 3. (Q3) ¿El H&E ya está alineado en Xenium Explorer? ¿Hay CSV de alineación?
-> 4. (Q4) ¿Tienes la tabla core ↔ muestra ↔ paciente? ¿Qué datos clínicos pueden ser públicos?
-> 5. (Q5) ¿Se publicarán todas las células y genes?
-> 6. (Q7) ¿Qué vista te importa más: UMAP, mapa del TMA o detalle del core?
-> 7. (Q12) ¿Nombres y colores de los 23 clusters como en las figuras?
-> 8. (Q14) ¿El UMAP es uno integrado para todas las secciones?
-> 9. (Q15) ¿Qué normalización usaron para las figuras de expresión?
+In-person meeting after the Phase 3 demo, with the drive and the handoff list (BRIEF §4.1). Ordered by
+what each answer unblocks, Phase 4 first. Estef answers unless marked; Dany's items are grouped so her
+time is used only for scope and publication decisions.
 
-## Batched message — Dany
+### 1. Unblocks Phase 4 — lab data handoff (Estef)
+1. **Q2** Copy one Xenium `outs/` per section, only the handoff-list files (selective, ≤ 2 GB/section).
+2. **Q1** Annotation table `cell_id, section, cluster_label, umap_1, umap_2`: format and source (Seurat or scanpy).
+3. **Q4** TMA map core ↔ sample ↔ patient; which clinical fields may be public.
+4. **Q3** Is the H&E aligned to Xenium? Alignment file, format, resolution.
+5. **Q14** One integrated UMAP across all sections, or one per section?
+6. **Q15** Normalization used for the expression figures.
+7. **Q12** Names and palette of the 23 clusters as in the paper figures.
 
-> Hola Dany, cuatro decisiones de alcance y publicación del atlas, cuando tengas un momento:
-> 1. (Q10) ¿Puede ser público el repo, con un demo usando datos públicos de 10x, antes del paper? Mientras, queda privado.
-> 2. (Q6) ¿A qué revista va y el sitio se cita dentro del paper del atlas? ¿Dónde se depositan los datos crudos?
-> 3. (Q5) ¿Se publicarán todas las células (~443K) y genes (~5K)?
-> 4. (Q16) ¿Cómo quieres que se cite el sitio antes de que exista el paper?
-> 5. (Q9) Confirmación: ¿licencia MIT para el código?
+### 2. Unblocks what may be public (Dany; Q5 with Estef)
+8. **Q5** Will all ~443K cells and ~5K genes be published?
+9. **Q10** May the repo and a dev-data demo be public before the paper?
 
-## Batched message — Jair
+### 3. Unblocks citation and release content (Dany)
+10. **Q6** Journal; site cited inside the atlas paper or a separate note; raw-data deposit.
+11. **Q16** How to cite the site before the paper exists.
+12. **Q9** Confirm the MIT license (repo owner already answered).
 
-> Hola Jair, para preparar el despliegue del atlas en `atlas.liigh.unam.mx` (nginx estático, HTTPS con
-> Let's Encrypt, cuota ≥ 10 GB, como `vcfplotein`):
-> 1. (Q8) ¿Confirmas servidor, subdominio y cuota?
-> 2. (Q13) ¿Hay límite de archivos o inodos (~5K archivos por gen más mosaicos del H&E por versión)?
-> 3. (Q13) ¿nginx tiene el módulo brotli, o solo gzip?
-> 4. (Q13) ¿Cómo subo versiones (SSH/rsync) y cuántas versiones anteriores puedo conservar?
+### 4. Informs Phase 5 priorities (Estef)
+13. **Q7** Which view matters most to the lab, after seeing the demo.
+
+## Deployment step — Jair
+
+Held until Phase 6, sent with `docs/DEPLOY.md`.
+1. **Q8** Confirm server, subdomain `atlas.liigh.unam.mx` and quota ≥ 10 GB.
+2. **Q13** File-count or inode limits (~5K per-gene files + H&E tiles per release); brotli module or gzip
+   only; upload access (SSH/rsync); how many previous releases to keep.

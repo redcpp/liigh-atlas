@@ -1,6 +1,6 @@
 # ADR-0002 — Static asset format
 
-Status: Proposed (maintainer gate after Phase 0)
+Status: Accepted with conditions (Gate 0, `[Diego]`)
 
 ## Context
 
@@ -17,7 +17,7 @@ URLs (NFR-16). BRIEF §8 suggests `float32` coordinates; at 443K cells one float
    round-trips, float32 coordinates, and a Zarr reader in the bundle.
 3. **Typed binary arrays + JSON manifest** (BRIEF default): one little-endian file per column, fetched
    with `fetch().arrayBuffer()` and viewed as a TypedArray with zero parsing.
-4. Option 3 with **quantized coordinates** (`uint16` + per-axis scale/offset in the manifest).
+4. Option 3 with **quantized coordinates** (`uint16` + per-axis offset and scale in the manifest).
 
 ## Decision
 
@@ -29,8 +29,13 @@ This deviates from the BRIEF `float32` default, justified by the numbers:
 | UMAP (443K × 2) | 3.54 MB | 1.77 MB | range/65,535 ≈ 0.0006 units for a ~40-unit embedding; sub-pixel even at 16× zoom on a 4K screen |
 | Spatial per section (443K × 2) | 3.54 MB | 1.77 MB | 22,500 µm / 65,535 ≈ 0.34 µm (TMA slide) — below the 0.2125 µm × 2 pixel pitch that matters for ~10 µm cells |
 
-The build asserts the maximum quantization error (UMAP ≤ 0.1% of range, spatial ≤ 0.5 µm) and fails
-otherwise. Initial payload estimate: 1.77 (UMAP) + 0.44 (cluster `uint8`) + ~0.2 (manifest, tables,
+**Gate 0 conditions:** (a) spatial coordinates are quantized **per section**, UMAP per axis, each with
+its own `offset` and `scale` in the manifest (`v = offset + q · scale`); (b) T-PIPE-QUANT-01 asserts the
+maximum round-trip error is ≤ 0.5 µm (spatial) and ≤ 0.1% of the embedding range (UMAP), and the build
+fails otherwise; (c) URL state and figure exports always use physical units (µm, UMAP units), never
+quantized integers, so a rebuild with a different scale cannot change a cited URL (NFR-16, T-WEB-URL-03).
+
+Initial payload estimate: 1.77 (UMAP) + 0.44 (cluster `uint8`) + ~0.2 (manifest, tables,
 gene index) + ~0.6 (JS/CSS, compressed) ≈ **3.0 MB** < 5 MB.
 
 **Layout per release:** `data/<dataset>/<release>/` with `manifest.json` (schema version, dataset
@@ -48,7 +53,8 @@ JSON, fixed float formatting, pinned encoders, no timestamps in outputs.
 
 ## Consequences
 
-- The web decoder is ~50 lines: `new Uint16Array(buf)` + scale/offset in the worker.
+- The web decoder is ~50 lines: `new Uint16Array(buf)` + offset/scale in the worker; integers never
+  leave the data layer.
 - Quantization error is bounded and tested; float32 remains a manifest option (`dtype`) if a lab
   embedding needs it, at the cost of NFR-3 headroom.
 - No external tool can open the assets directly; the canonical dataset remains the interoperable form.
