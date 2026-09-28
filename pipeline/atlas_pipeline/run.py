@@ -41,7 +41,7 @@ class RunSummary:
     counts: dict[str, Any]
     sizes: dict[str, dict[str, int]]
     quant_errors: dict[str, float]
-    align: list[align.AlignResult] = field(default_factory=list)
+    align: list[align.AlignSuite] = field(default_factory=list)
     raw_log: str = ""
     validation: str = ""
     seconds: float = 0.0
@@ -104,7 +104,7 @@ def run(name: str) -> RunSummary:
         if not v <= limit:
             raise BuildCheckError(f"quantization error {k} = {v} exceeds {limit}")
 
-    results: list[align.AlignResult] = []
+    results: list[align.AlignSuite] = []
     if cfg.he:
         results = build_he(ds, cfg, res, rawlog)
     manifest = write_manifest(res, ds)
@@ -135,8 +135,8 @@ def run(name: str) -> RunSummary:
     )
 
 
-def build_he(ds: CanonicalDataset, cfg: DatasetConfig, res: Any, rawlog: RawFileLog) -> list[align.AlignResult]:
-    results: list[align.AlignResult] = []
+def build_he(ds: CanonicalDataset, cfg: DatasetConfig, res: Any, rawlog: RawFileLog) -> list[align.AlignSuite]:
+    results: list[align.AlignSuite] = []
     w = res.writer
     sec: Any
     core: Any
@@ -172,14 +172,14 @@ def build_he(ds: CanonicalDataset, cfg: DatasetConfig, res: Any, rawlog: RawFile
 
 def alignment_tests(
     ds: CanonicalDataset, sec: Any, src: SourceImage, m: NDArray[Any], he_px: float, staging: Path, seed: int
-) -> list[align.AlignResult]:
+) -> list[align.AlignSuite]:
     cells = ds.cells[ds.cells.section_id == sec.section_id]
     xy = cells[["x_um", "y_um"]].to_numpy()
-    rng = np.random.default_rng(seed)
-    bounds = (float(xy[:, 0].min()), float(xy[:, 1].min()), float(xy[:, 0].max()), float(xy[:, 1].max()))
-    rand = align.tissue_points(src, m, he_px, bounds, align.N_POINTS, rng)
+    rand = align.random_points(src, m, he_px, xy, np.random.default_rng(seed))
     sample_raw, _ = align.raw_sampler(src, m, he_px)
-    r1 = align.run(f"T-PIPE-ALIGN-01 raw H&E [{sec.section_id}]", sample_raw, xy, rand, np.random.default_rng(seed))
+    r1 = align.run_suite(
+        f"T-PIPE-ALIGN-01 raw H&E [{sec.section_id}]", sample_raw, xy, rand, np.random.default_rng(seed)
+    )
     # T-PIPE-ALIGN-02: same points, sampled from the pre-aligned full-resolution tiles by µm position
     readers = {}
     for core in ds.cores[ds.cores.section_id == sec.section_id].itertuples():
@@ -194,7 +194,7 @@ def alignment_tests(
                 return float(align.hematoxylin(rd.patch(x, y, rpx))[disk].mean())
         return float(align.hematoxylin(np.full((1, 1, 3), 255, np.uint8)).mean())
 
-    r2 = align.run(
+    r2 = align.run_suite(
         f"T-PIPE-ALIGN-02 pre-aligned pyramid [{sec.section_id}]",
         sample_pyr,
         xy,
