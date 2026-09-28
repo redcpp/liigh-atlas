@@ -105,11 +105,25 @@ def test_alignment_raw_and_pyramid() -> None:
     assert he["source_pixel_size_um"] == pytest.approx(0.274, abs=1e-3)
 
 
+def oracle_skip_reason(outs: Path) -> str | None:
+    """Gate 1: cells.zarr.zip is a test-only input; without it the oracle skips (never fails)."""
+    zz = outs / "cells.zarr.zip"
+    if not zz.exists():
+        return (
+            f"T-PIPE-ORACLE-01 skipped: test-only input {zz} is absent "
+            "(spatialdata-io 0.7.1 needs cells.zarr.zip to build the cells table; the pipeline never reads it)"
+        )
+    return None
+
+
 def test_spatialdata_io_oracle() -> None:
     """ADR-0009 (b): spatialdata-io (test-only; transcripts, images, labels, boundaries off) agrees with our
     reader on cell ids, centroids and matrix shape. spatialdata-io 0.7.1 needs cells.zarr.zip for the
     table, so the oracle (never the pipeline) reads it; it must open no transcripts.* or morphology* file."""
     sdio = pytest.importorskip("spatialdata_io")
+    reason = oracle_skip_reason(raw_dir("ovarian-10x") / "outs")
+    if reason:
+        pytest.skip(reason)
     import sys
 
     from atlas_pipeline.adapters import get_adapter
