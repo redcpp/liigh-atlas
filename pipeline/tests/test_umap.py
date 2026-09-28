@@ -50,11 +50,12 @@ def test_select_and_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> No
     monkeypatch.setattr(us, "recompute_umap", fake)
     cfg = load_config("ovarian-10x")
     emb, prov = us.select_umap(counts, ids, labels, outs, cfg, RawFileLog())
-    assert prov["source"] == "provided" and prov["zero_transcript_cells_placed_at_group_median"] == 1
+    assert prov["source"] == "provided" and prov["cells_without_embedding"] == 1
     assert prov["knn_coherence"]["provided"] > prov["knn_coherence"]["recomputed"]
-    assert np.isfinite(emb).all() and calls == [n - 1]
+    # no invented position for the cell without an embedding (Gate 1)
+    assert np.isnan(emb[0]).all() and np.isfinite(emb[1:]).all() and calls == [n - 1]
     emb2, prov2 = us.select_umap(counts, ids, labels, outs, cfg, RawFileLog())
     assert calls == [n - 1], "second run must reuse the cache"
-    assert np.array_equal(emb, emb2) and prov == prov2
+    assert np.array_equal(emb, emb2, equal_nan=True) and prov == prov2
     sidecar = next((tmp_path / "derived/ovarian-10x").glob("umap-*.json")).read_text()
     assert "input_matrix_sha256" in sidecar and "scanpy" in sidecar

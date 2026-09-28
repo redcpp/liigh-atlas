@@ -124,7 +124,6 @@ def select_umap(
     outs: Path,
     cfg: DatasetConfig,
     rawlog: RawFileLog,
-    fill_label: str = "unassigned",
 ) -> tuple[NDArray[Any], dict[str, Any]]:
     provided, present = read_provided(outs, cell_ids, rawlog)
     n_tx = np.asarray(counts.sum(axis=1)).ravel()
@@ -138,14 +137,11 @@ def select_umap(
     s_rec = knn_coherence(recomputed[present], labels[present])
     choice = "recomputed" if s_rec > s_prov else "provided"
     log.info("UMAP kNN coherence (k=%d): provided=%.4f recomputed=%.4f -> using %s", K, s_prov, s_rec, choice)
-    n_missing = int((~present).sum())
     chosen = recomputed if choice == "recomputed" else provided
-    if n_missing:
-        # cells with 0 transcripts have no expression profile, so neither embedding can place them
-        # (10x leaves them out too). They sit at the median of their group (Unassigned) so every cell
-        # has finite coordinates; the count is in provenance.
-        grp = present & (labels == fill_label)
-        chosen[~present] = np.median(chosen[grp], axis=0)
+    # cells without an embedding (10x leaves out cells with 0 transcripts) keep NaN coordinates and
+    # has_umap = False: they stay in the spatial views and are excluded from the UMAP view (Gate 1).
+    chosen[~present] = np.nan
+    n_missing = int((~present).sum())
     prov = {
         "source": choice,
         "knn_coherence": {
@@ -154,7 +150,7 @@ def select_umap(
             "provided": round(s_prov, 6),
             "recomputed": round(s_rec, 6),
         },
-        "zero_transcript_cells_placed_at_group_median": n_missing,
+        "cells_without_embedding": n_missing,
         "recompute": meta,
     }
     return chosen, prov

@@ -28,6 +28,7 @@ def toy_tissue(n: int = 30_000, side: float = 5_000.0, seed: int = 0) -> Canonic
             "y_um": y,
             "umap_x": rng.normal(size=n).astype(np.float32),
             "umap_y": rng.normal(size=n).astype(np.float32),
+            "has_umap": True,
             "cluster_id": groups,
             "n_transcripts": np.asarray(counts.sum(axis=1)).ravel().astype(np.int32),
         }
@@ -64,6 +65,8 @@ def toy_tissue(n: int = 30_000, side: float = 5_000.0, seed: int = 0) -> Canonic
             }
         ]
     )
+    cells.loc[cells.index[:50], ["umap_x", "umap_y"]] = np.float32(np.nan)  # cells without an embedding
+    cells.loc[cells.index[:50], "has_umap"] = False
     rec = DatasetRecord(
         name="toy",
         title="t",

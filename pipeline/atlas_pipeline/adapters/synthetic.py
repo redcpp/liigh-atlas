@@ -122,6 +122,7 @@ def derive(src: CanonicalDataset, cfg: DatasetConfig) -> CanonicalDataset:
                     "y_um": cy_.astype(np.float64),
                     "umap_x": src.cells.umap_x.to_numpy()[idx],
                     "umap_y": src.cells.umap_y.to_numpy()[idx],
+                    "has_umap": src.cells.has_umap.to_numpy()[idx],
                     "cluster_id": cell_cluster[idx],
                     "n_transcripts": src.cells.n_transcripts.to_numpy()[idx],
                 }

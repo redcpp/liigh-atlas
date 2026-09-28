@@ -20,6 +20,7 @@ from .contract import CanonicalDataset
 log = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
 U16_MAX = 65535
+NO_UMAP = U16_MAX  # uint16 sentinel in cells/umap.u16 for cells without an embedding
 
 
 # ---------- quantization (T-PIPE-QUANT-01) ----------
@@ -36,9 +37,9 @@ class Quant:
         return self.offset + q.astype(np.float64) * self.scale
 
 
-def fit_quant(lo: float, hi: float) -> Quant:
+def fit_quant(lo: float, hi: float, max_q: int = U16_MAX) -> Quant:
     span = max(hi - lo, 1e-9)
-    return Quant(offset=float(lo), scale=float(span / U16_MAX))
+    return Quant(offset=float(lo), scale=float(span / max_q))
 
 
 # ---------- ordering ----------
@@ -234,9 +235,13 @@ def build_assets(ds: CanonicalDataset, staging: Path, scale_factor: float) -> Bu
     n = len(cells)
 
     # cells/*
+    has = cells.has_umap.to_numpy(bool)
     ux, uy = cells.umap_x.to_numpy(np.float64), cells.umap_y.to_numpy(np.float64)
-    umap_q = (fit_quant(ux.min(), ux.max()), fit_quant(uy.min(), uy.max()))
-    qu = np.stack([umap_q[0].encode(ux), umap_q[1].encode(uy)], axis=1)
+    hx, hy = ux[has], uy[has]
+    # quantize over cells with an embedding into 0..65534; 65535 marks "no embedding"
+    umap_q = (fit_quant(hx.min(), hx.max(), U16_MAX - 1), fit_quant(hy.min(), hy.max(), U16_MAX - 1))
+    qu = np.full((n, 2), NO_UMAP, np.uint16)
+    qu[has, 0], qu[has, 1] = umap_q[0].encode(hx), umap_q[1].encode(hy)
     w.write(
         "cells/umap.u16",
         qu.astype("<u2").tobytes(),
@@ -245,12 +250,13 @@ def build_assets(ds: CanonicalDataset, staging: Path, scale_factor: float) -> Bu
         shape=[n, 2],
         offset=[umap_q[0].offset, umap_q[1].offset],
         scale=[umap_q[0].scale, umap_q[1].scale],
+        missing=NO_UMAP,
     )
-    qxy = np.empty((n, 2), np.uint16)
     errs = {
-        "umap_x_frac": _err(umap_q[0], ux, qu[:, 0]) / max(np.ptp(ux), 1e-12),
-        "umap_y_frac": _err(umap_q[1], uy, qu[:, 1]) / max(np.ptp(uy), 1e-12),
+        "umap_x_frac": _err(umap_q[0], hx, qu[has, 0]) / max(np.ptp(hx), 1e-12),
+        "umap_y_frac": _err(umap_q[1], hy, qu[has, 1]) / max(np.ptp(hy), 1e-12),
     }
+    qxy = np.empty((n, 2), np.uint16)
     for sid, q in xy_quant.items():
         m = (cells.section_id == sid).to_numpy()
         x, y = cells.x_um.to_numpy()[m], cells.y_um.to_numpy()[m]
@@ -400,6 +406,7 @@ def write_manifest(res: BuildResult, ds: CanonicalDataset) -> dict[str, Any]:
         "dataset": record,
         "counts": {
             "cells": len(ds.cells),
+            "cells_without_umap": int((~ds.cells.has_umap.to_numpy(bool)).sum()),
             "genes": len(ds.genes),
             "clusters": len(ds.clusters),
             "cores": len(ds.cores),

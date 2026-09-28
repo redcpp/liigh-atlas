@@ -55,8 +55,10 @@ CELLS = pa.DataFrameSchema(
         "patient_id": _str,
         "x_um": pa.Column("float64", pa.Check(lambda s: np.isfinite(s)), nullable=False),
         "y_um": pa.Column("float64", pa.Check(lambda s: np.isfinite(s)), nullable=False),
-        "umap_x": pa.Column("float32", pa.Check(lambda s: np.isfinite(s)), nullable=False),
-        "umap_y": pa.Column("float32", pa.Check(lambda s: np.isfinite(s)), nullable=False),
+        # NaN when the cell has no embedding (has_umap = False), e.g. QC-filtered cells (DATA_CONTRACT §1)
+        "umap_x": pa.Column("float32", pa.Check(lambda s: ~np.isinf(s)), nullable=True),
+        "umap_y": pa.Column("float32", pa.Check(lambda s: ~np.isinf(s)), nullable=True),
+        "has_umap": pa.Column(bool, nullable=False),
         "cluster_id": _str,
         "n_transcripts": pa.Column("int32", pa.Check.ge(0), nullable=False),
     },
@@ -162,6 +164,14 @@ def validate(ds: CanonicalDataset, cfg: DatasetConfig) -> Report:
     shape_ok = ds.expression.shape == (len(cells), len(ds.genes))
     r.add("expression shape = cells × genes", shape_ok, f"{ds.expression.shape}")
     r.add("expression dtype int32, ≥ 0", ds.expression.dtype == np.int32 and (ds.expression.data >= 0).all())
+    has = cells.has_umap.to_numpy(bool)
+    finite = np.isfinite(cells.umap_x.to_numpy()) & np.isfinite(cells.umap_y.to_numpy())
+    bad_umap = int((has != finite).sum())
+    r.add(
+        "has_umap ⇔ finite UMAP coordinates",
+        bad_umap == 0,
+        f"{bad_umap} bad rows; {int((~has).sum())} cells without embedding",
+    )
     lower = ds.genes.symbol.str.lower()
     r.add("genes.symbol unique (case-insensitive)", not lower.duplicated().any())
 

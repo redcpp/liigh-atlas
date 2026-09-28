@@ -45,7 +45,8 @@ CASES: dict[str, Callable[[CanonicalDataset], CanonicalDataset]] = {
         d, lambda c: c.__setitem__("n_transcripts", (c.n_transcripts + 1).astype(np.int32))
     ),
     "cores of a section do not overlap": lambda d: _cores(d, lambda c: c.__setitem__("center_x_um", 150.0)),
-    "schema cells": lambda d: _cells(d, lambda c: c.__setitem__("umap_x", np.float32(np.nan))),
+    "schema cells": lambda d: _cells(d, lambda c: c.__setitem__("umap_x", np.float32(np.inf))),
+    "has_umap ⇔ finite UMAP coordinates": lambda d: _cells(d, lambda c: c.__setitem__("umap_y", np.float32(np.nan))),
     "schema clusters": lambda d: dataclasses.replace(d, clusters=d.clusters.assign(color="red")),
 }
 
@@ -59,6 +60,18 @@ def test_violation_is_reported(ds: CanonicalDataset, rule: str) -> None:
     with pytest.raises(ContractError, match="violated"):
         require_valid(bad, load_config("fixture"))
     assert "abc" not in rep.render()  # counts only, never values
+
+
+def test_cells_without_embedding_are_valid(ds: CanonicalDataset) -> None:
+    """General rule (Gate 1): a cell may lack an embedding if has_umap is False and its UMAP is NaN."""
+
+    def drop(c: pd.DataFrame) -> None:
+        c.loc[c.index[:5], ["umap_x", "umap_y"]] = np.float32(np.nan)
+        c.loc[c.index[:5], "has_umap"] = False
+
+    rep = validate(_cells(ds, drop), load_config("fixture"))
+    assert rep.ok, rep.render()
+    assert "5 cells without embedding" in rep.render()
 
 
 def test_known_totals_from_config(ds: CanonicalDataset) -> None:

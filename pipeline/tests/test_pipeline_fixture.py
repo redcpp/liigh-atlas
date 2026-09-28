@@ -18,7 +18,7 @@ def test_summary_and_manifest(fixture_run) -> None:
     s = fixture_run
     man = json.loads((s.out_dir / "manifest.json").read_text())
     assert s.out_dir.name == s.release and len(s.release) == 12
-    assert man["counts"] == {
+    assert {k: v for k, v in man["counts"].items() if k != "cells_without_umap"} == {
         "cells": 2821,
         "genes": 150,
         "clusters": 14,
@@ -87,7 +87,19 @@ def test_alignment_passes_on_fixture(fixture_run) -> None:
     assert any("ALIGN-01" in n for n in names) and any("ALIGN-02" in n for n in names)
     for r in fixture_run.align:
         assert r.passed, r.render()
-        assert r.n_cells == 1000 and r.n_random == 1000
+        masks = {c.mask for c in r.comparisons}
+        assert masks == {"brightfield mask", "≤ 20 µm from a cell"} and len(r.comparisons) == 4
+        for c in r.comparisons:
+            assert c.n_a == 1000 and c.n_b == 1000
+            assert c.passed == (c.group == "centroids"), c.render()
+
+
+def test_umap_sentinel_matches_has_umap(fixture_run) -> None:
+    man = json.loads((fixture_run.out_dir / "manifest.json").read_text())
+    q = np.frombuffer((fixture_run.out_dir / "cells/umap.u16").read_bytes(), "<u2").reshape(-1, 2)
+    missing = man["files"]["cells/umap.u16"]["missing"]
+    assert int((q[:, 0] == missing).sum()) == man["counts"]["cells_without_umap"]
+    assert ((q[:, 0] == missing) == (q[:, 1] == missing)).all()
 
 
 def test_repro_fixture(fixture_run) -> None:

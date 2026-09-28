@@ -18,6 +18,7 @@ from ..env import raw_dir
 from ..rawio import RawFileLog
 from ..umap_select import select_umap
 from ..verify import SUPP_PREFIX, parse_md5
+from ..xenium import check_version
 from .common import cluster_table, dedupe_symbols, he_affine, he_pixel_size_um, region_core, slug
 
 log = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ def load(cfg: DatasetConfig, rawlog: RawFileLog) -> CanonicalDataset:
     outs, supp = root / "outs", root / "supplemental"
 
     experiment = json.loads(rawlog.use(outs / "experiment.xenium").read_text())
+    xenium_version = check_version(experiment)  # ADR-0009 (a): fail loudly on untested versions
     pixel_size = float(experiment["pixel_size"])
 
     cells_pq = pq.read_table(
@@ -119,6 +121,7 @@ def load(cfg: DatasetConfig, rawlog: RawFileLog) -> CanonicalDataset:
             "y_um": y,
             "umap_x": umap[:, 0].astype(np.float32),
             "umap_y": umap[:, 1].astype(np.float32),
+            "has_umap": np.isfinite(umap).all(axis=1),
             "cluster_id": cluster_id,
             "n_transcripts": cells_pq.transcript_counts.to_numpy().astype(np.int32),
         }
@@ -157,7 +160,7 @@ def load(cfg: DatasetConfig, rawlog: RawFileLog) -> CanonicalDataset:
             "md5": md5,
             "adapter": f"ovarian-10x@{ADAPTER_VERSION}",
             "pipeline_version": PIPELINE_VERSION,
-            "xenium_analysis": experiment.get("analysis_sw_version"),
+            "xenium_analysis": xenium_version,
             "pixel_size_um": pixel_size,
             "normalization": {"method": cfg.normalization, "scale_factor": cfg.scale_factor},
             "seed": cfg.seed,
