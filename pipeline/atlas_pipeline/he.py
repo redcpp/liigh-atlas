@@ -28,7 +28,8 @@ WEBP_QUALITY = 85
 WEBP_METHOD = 4
 THUMB = 256
 MARGIN_UM = 50.0
-KERNEL_MARGIN = 6  # Lanczos4 needs 4 px on each side; keep a little extra
+KERNEL_MARGIN = 8  # Lanczos4 needs 4 px per side; adjacent source windows overlap by ≥ 8 px (ADR-0009 c)
+CV_MAX_DIM = 32767  # OpenCV warp limit per side; the builder always warps in blocks well below it
 
 
 @dataclass
@@ -88,24 +89,50 @@ def render(
         [[-0.5, -0.5, 1], [width - 0.5, -0.5, 1], [-0.5, height - 0.5, 1], [width - 0.5, height - 0.5, 1]]
     )
     sc = (m @ corners.T)[:2]
-    wx0, wy0 = int(math.floor(sc[0].min())) - KERNEL_MARGIN, int(math.floor(sc[1].min())) - KERNEL_MARGIN
-    wx1, wy1 = int(math.ceil(sc[0].max())) + KERNEL_MARGIN, int(math.ceil(sc[1].max())) + KERNEL_MARGIN
+    # anti-alias before the Lanczos warp when the output pixel covers > 1.25 source pixels: an exact
+    # f × f box average on a window aligned to multiples of f, so every block shrinks the same source
+    # pixels together and adjacent blocks agree (no seams)
+    ratio = math.sqrt(abs(np.linalg.det(m[:2, :2])))  # source px per output px
+    f = max(1, round(ratio)) if ratio > 1.25 else 1
+    margin = KERNEL_MARGIN * f  # ≥ 8 px of overlap after the shrink too
+    wx0, wy0 = int(math.floor(sc[0].min())) - margin, int(math.floor(sc[1].min())) - margin
+    wx1, wy1 = int(math.ceil(sc[0].max())) + margin, int(math.ceil(sc[1].max())) + margin
+    if f > 1:
+        wx0, wy0 = (wx0 // f) * f, (wy0 // f) * f
+        wx1, wy1 = -(-wx1 // f) * f, -(-wy1 // f) * f
     win = src.read(k, wx0, wy0, wx1, wy1)
     m = np.array([[1, 0, -wx0], [0, 1, -wy0], [0, 0, 1]]) @ m
-    ratio = math.sqrt(abs(np.linalg.det(m[:2, :2])))  # source px per output px
-    if ratio > 1.25:  # anti-alias before the Lanczos warp
-        nw, nh = max(1, round(win.shape[1] / ratio)), max(1, round(win.shape[0] / ratio))
-        sx, sy = nw / win.shape[1], nh / win.shape[0]
-        win = cv2.resize(win, (nw, nh), interpolation=cv2.INTER_AREA)
-        m = np.array([[sx, 0, 0.5 * sx - 0.5], [0, sy, 0.5 * sy - 0.5], [0, 0, 1]]) @ m
-    out = cv2.warpAffine(
-        win,
-        m[:2].astype(np.float64),
-        (width, height),
-        flags=cv2.INTER_LANCZOS4 | cv2.WARP_INVERSE_MAP,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=(255, 255, 255),
-    )
+    if f > 1:
+        h, w = win.shape[0] // f, win.shape[1] // f
+        win = np.rint(win.reshape(h, f, w, f, 3).mean(axis=(1, 3))).astype(np.uint8)
+        m = np.array([[1 / f, 0, 0.5 / f - 0.5], [0, 1 / f, 0.5 / f - 0.5], [0, 0, 1]]) @ m
+    if max(win.shape[0], win.shape[1], width, height) >= CV_MAX_DIM:
+        raise ValueError(f"warp of {win.shape[1]}x{win.shape[0]} -> {width}x{height} exceeds OpenCV's limit")
+    out = _lanczos_remap(win, m, width, height)
+    return np.asarray(out, dtype=np.uint8)
+
+
+INTER_TAB = 32  # OpenCV's sub-pixel table resolution (INTER_BITS = 5)
+
+
+def _lanczos_remap(win: NDArray[Any], m: NDArray[Any], width: int, height: int) -> NDArray[Any]:
+    """Lanczos4 resampling with fixed-point source coordinates computed here, not by OpenCV.
+
+    ``cv2.warpAffine`` rounds each call's translation to 1/32 px on its own, so the same output pixel can
+    fall in a different sub-pixel bin depending on the block it belongs to (a seam of a few levels,
+    T-PIPE-HE-02). Here each coordinate is computed in float64 from the pixel position and rounded once
+    to 1/32 px; window origins are integers, so every block gives the same bins and the same pixels.
+    """
+    ys, xs = np.mgrid[0:height, 0:width].astype(np.float64)
+    sx = m[0, 0] * xs + m[0, 1] * ys + m[0, 2]
+    sy = m[1, 0] * xs + m[1, 1] * ys + m[1, 2]
+    fx = np.rint(sx * INTER_TAB).astype(np.int64)
+    fy = np.rint(sy * INTER_TAB).astype(np.int64)
+    ix, iy = fx // INTER_TAB, fy // INTER_TAB
+    lo, hi = -(2**15), 2**15 - 1
+    map1 = np.stack([np.clip(ix, lo, hi), np.clip(iy, lo, hi)], axis=-1).astype(np.int16)
+    map2 = ((fy % INTER_TAB) * INTER_TAB + (fx % INTER_TAB)).astype(np.uint16)
+    out = cv2.remap(win, map1, map2, cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
     return np.asarray(out, dtype=np.uint8)
 
 
