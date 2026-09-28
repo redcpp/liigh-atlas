@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from uuid import NAMESPACE_URL, uuid5
 
 import numpy as np
 import pandas as pd
@@ -104,7 +105,7 @@ def make(out: Path = FIXTURE_DIR) -> dict[str, int]:
         compressionargs={"level": 90},
         photometric="rgb",
         ome=True,
-        metadata={"axes": "YXS"},
+        metadata={"axes": "YXS", "UUID": f"urn:uuid:{uuid5(NAMESPACE_URL, f'atlas-fixture/{wx0}/{wy0}')}"},
     )
     ps = float(sec.pixel_size)
     affine_f = np.array([[1, 0, -cx0], [0, 1, -cy0], [0, 0, 1]]) @ m @ np.array([[1, 0, wx0], [0, 1, wy0], [0, 0, 1]])
