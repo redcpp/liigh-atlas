@@ -6,8 +6,17 @@ deadline (~March 2027).
 ## Phase
 
 **Phase 1 — foundation + pipeline on development data** (goal `g1-pipeline`, branch `phase-1-pipeline`).
-All exit criteria in `docs/ROADMAP.md` met on the dev data. **Gate 1 decisions applied** (below);
-Phase 2 not started (waits for the maintainer to start `g2-umap`).
+All exit criteria in `docs/ROADMAP.md` met on the dev data. **Gate 1 closed** (`[Diego]`); Phase 2 not
+started (waits for the maintainer to start `g2-umap`).
+
+## Gate 1 closed (`[Diego]`)
+
+1. Oracle accepted: `cells.zarr.zip` is a test-only input. Without it, T-PIPE-ORACLE-01 skips with an
+   explicit reason (pytest `-ra` prints it in `make verify`); `test_oracle_skip.py` covers the rule.
+2. Phase 4 safety: ROADMAP Phase 4 exit criterion 7 — the lab's `analysis_sw_version` enters the
+   allowlist only after the oracle passes on the lab data. Meeting agenda Q2 adds `cells.zarr.zip` per
+   section (test-only, ~460 MB total `[Assumption]`) to the handoff checklist. BRIEF.md unchanged.
+
 
 ## Done
 
@@ -30,7 +39,7 @@ Phase 2 not started (waits for the maintainer to start `g2-umap`).
   negative control (25 µm shift) d ≈ 0.26. Criteria fixed before the first run: p < 1e-6, d ≥ 0.8.
 - Reproducibility (T-PIPE-REPRO-01): two ovarian-10x runs → release `681e291a3964`, 11,767 files,
   0 differing; re-run after Gate 1 → release `77b97a69f5a1`, 11,767 files, 0 differing.
-- Tests: 64 pytest tests (data-marked ones skip without `$DATA_ROOT`), pipeline coverage 92.75% with
+- Tests: 65 pytest tests (data-marked ones skip without `$DATA_ROOT`), pipeline coverage 92.75% with
   data, 87% without (CI); vitest scaffold test; ruff, mypy strict, eslint, tsc clean.
 - Docs: ADR-0009 (direct Xenium readers + OpenCV Lanczos, *Proposed*), `docs/learn/02-pipeline.md`,
   DATA_CONTRACT §10 (Phase 1 notes).
@@ -83,13 +92,11 @@ Also: `make fixture` is now byte-deterministic (fixed OME UUID derived from the 
 ## Decisions needed
 
 1. Carried over: ADR-0001, ADR-0003, ADR-0005, ADR-0006, ADR-0007, ADR-0008 still *Proposed*.
-2. ADR-0009 (b): accept that the test-only oracle reads `cells.zarr.zip` (spatialdata-io cannot build the
-   table without it), or drop the oracle to a spatialdata-io version that does not need it.
 
 ## Verification (last run)
 
-See the transcript of the Gate 1 turn: `make verify` and `uv run python scripts/check_docs.py`
-(full output), plus the rebuilt ovarian-10x, synthetic-tma and scale runs.
+See the transcript of the Gate 1 close turn: `make verify` and `uv run python scripts/check_docs.py`
+(full output), plus the oracle skip shown on a `$DATA_ROOT` without `cells.zarr.zip`.
 
 ## Measured numbers (dev data, spinning-disk external drive)
 

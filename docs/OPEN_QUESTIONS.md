@@ -36,6 +36,10 @@ time is used only for scope and publication decisions.
 
 ### 1. Unblocks Phase 4 — lab data handoff (Estef)
 1. **Q2** Copy one Xenium `outs/` per section, only the handoff-list files (selective, ≤ 2 GB/section).
+   Handoff checklist addition (Gate 1, `[Diego]`): `cells.zarr.zip`, one per section, **test-only** input for
+   the spatialdata-io oracle (T-PIPE-ORACLE-01) that must pass before the lab's Xenium version is allowed;
+   the pipeline never reads it. Estimate ~460 MB total, scaled from 425 MB for 407,124 dev cells to
+   ~443K cells `[Assumption]`.
 2. **Q1** Annotation table `cell_id, section, cluster_label, umap_1, umap_2`: format and source (Seurat or scanpy).
 3. **Q4** TMA map core ↔ sample ↔ patient; which clinical fields may be public.
 4. **Q3** Is the H&E aligned to Xenium? Alignment file, format, resolution.

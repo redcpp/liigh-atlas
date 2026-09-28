@@ -83,6 +83,9 @@ figures on lab data. IDs: all M/S re-verified on lab data; NFR-8.
 4. `make figures DATASET=lab` writes PNG/SVG under `$LAB_DATA_DIR/figures`.
 5. `git status` / `git ls-files` show no lab-derived files; no public build config references `lab`.
 6. `make verify` exits 0 on `fixture`; `docs/OPEN_QUESTIONS.md` records the meeting answers.
+7. The lab's `analysis_sw_version` (from each section's `experiment.xenium`) is added to
+   `atlas_pipeline.xenium.SUPPORTED_ANALYSIS_VERSIONS` only after the spatialdata-io oracle
+   (T-PIPE-ORACLE-01) passes on the lab data (ADR-0009 a–b, Gate 1 `[Diego]`).
 
 **Gate:** review figures with Estef. Skill milestones M1 → M4 on real data.
 
