@@ -166,7 +166,7 @@ criteria are judged on `scale` (≥ 443K cells) unless stated. Test IDs are in `
 - **AC-FR-G7.1** Given any view, when the visitor exports PNG, then a raster of at least 300 dpi at 180 mm width (≥ 2,126 px) with the same content as the screen is downloaded; when they export SVG, then legend, axes and scale bar are vector, labeled in physical units (µm, UMAP units).
 
 ### UMAP Atlas
-- **AC-FR-U1.1** Given the `scale` dataset, when the UMAP Atlas finishes loading, then the number of drawn points equals the dataset cell count (no subsampling), verified from the render layer's instance count.
+- **AC-FR-U1.1** Given the `scale` dataset, when the UMAP Atlas finishes loading, then the number of drawn points equals the number of cells that have an embedding (`has_umap`, manifest `counts.cells - counts.cells_without_umap`), with no subsampling, verified from the render layer's instance count; cells without an embedding are not drawn in the UMAP view but stay in the spatial views (Gate 1).
 - **AC-FR-U2.1** Given the pointer is over a cell, when the hover card appears, then it shows cluster label, patient and core, and the gene value when coloring by gene, within 50 ms.
 - **AC-FR-U3.1** Given the cluster filter, when the visitor hides or isolates clusters, then only cells of the visible clusters are drawn and pickable, and the filter is reflected in the URL.
 - **AC-FR-U4.1** Given the lasso tool, when the visitor draws a polygon on the UMAP, then the enclosed cells become the selection (count shown) within 200 ms, and the selection is linked to the other views (FR-G2).
@@ -188,6 +188,7 @@ criteria are judged on `scale` (≥ 443K cells) unless stated. Test IDs are in `
 - **AC-FR-R2.1** Given raw data in `$DATA_ROOT` (or `$LAB_DATA_DIR`), when the maintainer runs `make pipeline DATASET=<name>`, then every static asset of that dataset is regenerated with no manual step.
 
 ### Polish
+- **AC-FR-P1.2** Given a dataset with cells that have no embedding (e.g. 513 zero-transcript cells in `ovarian-10x`), when the visitor opens Methods, then it states that count, read from the manifest (`counts.cells_without_umap`), and that those cells appear only in the spatial views (Gate 1).
 - **AC-FR-P1.1** Given the site, when the visitor opens About, Methods, How to cite or License & data provenance, then each page exists, is reachable from the header and footer, and the provenance page credits 10x Genomics under CC BY 4.0 for the development dataset.
 - **AC-FR-P2.1** Given a first visit, when the app loads, then dismissible hints point at search, legend and view switcher; when dismissed they do not reappear; when the visitor presses `?`, then a keyboard-shortcuts panel opens.
 - **AC-FR-P3.1** Given assets are loading, when the visitor waits, then a progress indicator shows bytes loaded; given an asset request fails, when the error state shows, then "Retry" reloads only the failed asset; given WebGL is unavailable, then a fallback page explains the requirement.
@@ -258,3 +259,4 @@ criteria are judged on `scale` (≥ 443K cells) unless stated. Test IDs are in `
 | 0.2 | Gate 0: ADR-0002 (uint16 coordinates, per-section offset + scale, error test, physical units in URLs and exports) and ADR-0004 (Lanczos pre-aligned H&E, source affine and pixel size in manifest, alignment test on the pyramid) accepted with conditions; AC-FR-G7.1 now requires physical units. | `[Diego]` |
 | 0.2 | Gate 0: dev UMAP chosen in Phase 1 by kNN cluster coherence (provided vs seeded scanpy recompute), recompute cached under `$DATA_ROOT/derived/`. | `[Diego]` |
 | 0.2 | Gate 0: open questions are held for the in-person meeting after Phase 3 (demo-first, BRIEF §1); nothing is sent before. | `[Diego]` |
+| 0.3 | Gate 1: cells without an embedding (QC-filtered or zero-transcript cells; 513 in `ovarian-10x`) get no invented UMAP position. They stay in the canonical dataset and the spatial views, carry `has_umap = false`, are excluded from the UMAP view, and their count is reported in Methods. AC-FR-U1.1 now counts "all cells that have an embedding"; new AC-FR-P1.2. General data-contract rule, not a dev special case. | `[Diego]` |

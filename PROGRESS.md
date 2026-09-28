@@ -6,8 +6,8 @@ deadline (~March 2027).
 ## Phase
 
 **Phase 1 — foundation + pipeline on development data** (goal `g1-pipeline`, branch `phase-1-pipeline`).
-All exit criteria in `docs/ROADMAP.md` met on the dev data; waiting for the maintainer gate
-(re-derive µm → H&E px for 3 cells, read `docs/learn/02-pipeline.md`).
+All exit criteria in `docs/ROADMAP.md` met on the dev data. **Gate 1 decisions applied** (below);
+Phase 2 not started (waits for the maintainer to start `g2-umap`).
 
 ## Done
 
@@ -29,29 +29,45 @@ All exit criteria in `docs/ROADMAP.md` met on the dev data; waiting for the main
 - Alignment: T-PIPE-ALIGN-01 d = 1.379, p = 5.1e-177; T-PIPE-ALIGN-02 d = 1.361, p = 1.1e-173;
   negative control (25 µm shift) d ≈ 0.26. Criteria fixed before the first run: p < 1e-6, d ≥ 0.8.
 - Reproducibility (T-PIPE-REPRO-01): two ovarian-10x runs → release `681e291a3964`, 11,767 files,
-  0 differing.
-- Tests: 53 pytest tests (data-marked ones skip without `$DATA_ROOT`), pipeline coverage 92% with
+  0 differing; re-run after Gate 1 → release `77b97a69f5a1`, 11,767 files, 0 differing.
+- Tests: 64 pytest tests (data-marked ones skip without `$DATA_ROOT`), pipeline coverage 92.75% with
   data, 87% without (CI); vitest scaffold test; ruff, mypy strict, eslint, tsc clean.
 - Docs: ADR-0009 (direct Xenium readers + OpenCV Lanczos, *Proposed*), `docs/learn/02-pipeline.md`,
   DATA_CONTRACT §10 (Phase 1 notes).
 
-## Findings worth a look at the gate
+## Gate 1 applied (`[Diego]`)
 
-1. **513 zero-transcript cells** are missing from the 10x Cell Groups CSV and the provided UMAP. Kept
-   (10x counts them in 407,124), labelled `Unassigned` (10x's own group), placed at that group's UMAP
-   median. Alternative: drop them and change the expected count — not done, it contradicts the 10x
-   metrics check.
-2. **Alignment test design fix.** First fixture run used an Otsu tissue mask; on a crop with no
-   background Otsu split nuclei from stroma, biasing the random points. Replaced by a fixed
-   brightfield background threshold (block-averaged gray < 220 at ~10 µm/px). The pass criteria
-   were not changed.
-3. **Fixture** is a 600 µm window of the dev data with its H&E crop (not a subset of
-   `synthetic-tma`), so CI can run the H&E and alignment tests. Reason in DATA_CONTRACT §10.
-4. **synthetic-tma / scale have no H&E yet**: synthetic cores are moved onto a TMA grid, so they need
-   a per-core source offset (Phase 3 scope).
-5. **Scale sub-cluster colours** are a darker shade of the parent — placeholder until the NFR-7
-   palette (T-PIPE-PALETTE-01, Phase 2).
-6. Precompressed `.gz` assets (ADR-0002/0003) are left to `make build` (Phase 6).
+1. **Cells without an embedding**: no invented UMAP positions. `has_umap` (bool) added to `cells`;
+   NaN UMAP when false; kept in the canonical dataset (407,124) and the spatial views; sentinel 65535
+   in `cells/umap.u16`; `counts.cells_without_umap` in the manifest (ovarian-10x 513, synthetic-tma
+   162, scale 472). General rule in DATA_CONTRACT §1/§8; AC-FR-U1.1 counts "all cells that have an
+   embedding"; new AC-FR-P1.2 (Methods reports the count); PRD changelog 0.3. Test T-PIPE-UMAP-02.
+2. **Alignment**: second, image-independent tissue definition (≤ 20 µm from a cell centroid). Pass
+   rule required under both; the 25 µm-shifted control must fail under both. On ovarian-10x, raw:
+   centroids d = 1.379 / 1.348, control d = 0.258 / 0.242; pyramid: centroids d = 1.359 / 1.333,
+   control d = 0.262 / 0.248 (brightfield / near-cell). All four printed per test.
+3. **UMAP choice** approved; unchanged.
+4. **ADR-0009 accepted with conditions**: (a) `analysis_sw_version` gate (`xenium-3.0.0.15` only,
+   T-PIPE-XVER-01); (b) spatialdata-io 0.7.1 as a dev-only oracle (T-PIPE-ORACLE-01) — it needs
+   `cells.zarr.zip` for the table, so the *test* reads it (the pipeline never does); the test asserts
+   no `transcripts.*`/`morphology*` opened; (c) blockwise warp with ≥ 8 px overlap (scaled by the
+   shrink factor), grid-aligned box pre-shrink, seam test T-PIPE-HE-02 (tiled vs single pass, ≤ 2 levels,
+   fixed before the run). The first run failed on the box-shrink path (max 4 levels, mean 0.004):
+   `cv2.warpAffine` rounds each call's translation to 1/32 px separately. Fixed by computing fixed-point
+   coordinates from the global pixel position and using `cv2.remap`; now max difference 0 on both paths.
+   Tolerance unchanged.
+5. **Q13** now carries the measured dev build (11,767 files, 402.3 MB) and a projected lab TMA build
+   (≈ 13,800 files / ≈ 0.5 GB at 100 cores; ≈ 18,200 at 150).
+
+Also: `make fixture` is now byte-deterministic (fixed OME UUID derived from the window).
+
+## Open findings (carried)
+
+1. **Fixture** is a 600 µm window of the dev data with its H&E crop (not a subset of `synthetic-tma`),
+   so CI runs the H&E and alignment tests (DATA_CONTRACT §10).
+2. **synthetic-tma / scale have no H&E yet** (per-core source offset needed; Phase 3).
+3. **Scale sub-cluster colours** are placeholders until T-PIPE-PALETTE-01 (Phase 2).
+4. Precompressed `.gz` assets are left to `make build` (Phase 6).
 
 ## Next
 
@@ -66,20 +82,19 @@ All exit criteria in `docs/ROADMAP.md` met on the dev data; waiting for the main
 
 ## Decisions needed
 
-1. **ADR-0009** (read Xenium files directly instead of spatialdata-io; OpenCV for Lanczos): Proposed.
-2. Carried over: ADR-0001, ADR-0003, ADR-0005, ADR-0006, ADR-0007, ADR-0008 still *Proposed*.
-3. Zero-transcript cells (finding 1): keep as done, or drop them?
+1. Carried over: ADR-0001, ADR-0003, ADR-0005, ADR-0006, ADR-0007, ADR-0008 still *Proposed*.
+2. ADR-0009 (b): accept that the test-only oracle reads `cells.zarr.zip` (spatialdata-io cannot build the
+   table without it), or drop the oracle to a spatialdata-io version that does not need it.
 
 ## Verification (last run)
 
-See the transcript of this turn: `make setup`, `make data TIER=meta,core,he`,
-`make pipeline DATASET=ovarian-10x|synthetic-tma|scale`, `make repro DATASET=ovarian-10x`,
-`make test`, `make verify`, `git ls-files` check, `du -sh`.
+See the transcript of the Gate 1 turn: `make verify` and `uv run python scripts/check_docs.py`
+(full output), plus the rebuilt ovarian-10x, synthetic-tma and scale runs.
 
 ## Measured numbers (dev data, spinning-disk external drive)
 
 | Dataset | Cells | Genes | Clusters | Sections / cores / patients | Assets | Build time |
 |---|---|---|---|---|---|---|
-| ovarian-10x | 407,124 (median 178 tx) | 5,101 | 18 | 1 / 1 region / 1 | 402.3 MB (11,766 files) | ≈ 2.5 min |
-| synthetic-tma | 174,841 | 5,101 | 18 | 3 / 38 / 27 | 75.3 MB | 24 s |
-| scale | 447,694 | 5,101 | 23 | 3 / 100 / 62 | 181.4 MB | 45 s |
+| ovarian-10x | 407,124 (median 178 tx; 513 without UMAP) | 5,101 | 18 | 1 / 1 region / 1 | 402.3 MB (11,767 files incl. manifest) | ≈ 3.7 min |
+| synthetic-tma | 174,841 (162 without UMAP) | 5,101 | 18 | 3 / 38 / 27 | 75.3 MB | 26 s |
+| scale | 447,694 (472 without UMAP) | 5,101 | 23 | 3 / 100 / 62 | 181.4 MB | 38 s |

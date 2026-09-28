@@ -1,6 +1,6 @@
 # ADR-0009 — Read Xenium outputs directly (no spatialdata-io); OpenCV for the H&E warp
 
-Status: Proposed (maintainer gate after Phase 1)
+Status: Accepted with conditions (Gate 1, `[Diego]`)
 
 ## Context
 
@@ -25,6 +25,20 @@ BRIEF §8 lists `spatialdata-io` as a default pipeline library. The pipeline mus
 **Option 2 + OpenCV (`opencv-python-headless`).** Measured on the dev data: adapter load ≈ 5 s,
 full ovarian-10x build ≈ 2.5 min including the 8-level pyramid (42,852 × 29,849 px at 0.270 µm/px).
 `anndata`, `scanpy`, `pandas`, `pyarrow`, `zarr` stay as in BRIEF §8.
+
+**Gate 1 conditions:**
+(a) the adapter reads `analysis_sw_version` from `experiment.xenium` and accepts only tested
+versions (`atlas_pipeline.xenium.SUPPORTED_ANALYSIS_VERSIONS`, today `xenium-3.0.0.15`); any other
+fails loudly (T-PIPE-XVER-01). (b) spatialdata-io is a **test-only oracle** (dev dependency;
+transcripts, images, labels and boundaries off): cell ids, centroids and matrix shape must match our
+reader on the dev data (T-PIPE-ORACLE-01). spatialdata-io 0.7.1 cannot build the table without
+`cells.zarr.zip`, so the oracle reads it; the pipeline never does, and the test asserts the oracle opens
+no `transcripts.*` or `morphology*`. (c) The dev H&E is 43,993 × 30,918 px, above OpenCV's 32,767 px
+per side, so the builder always warps in blocks (2,048 output px) whose source windows overlap by
+≥ 8 px (scaled by the shrink factor); the pre-shrink is an exact box average on a grid-aligned window.
+Lanczos4 runs through `cv2.remap` with fixed-point coordinates computed from each pixel's global
+position, because `cv2.warpAffine` rounds each call's translation on its own (a 4-level seam in the first
+T-PIPE-HE-02 run). T-PIPE-HE-02 now finds tiled and single-pass warps identical (max difference 0).
 
 ## Consequences
 

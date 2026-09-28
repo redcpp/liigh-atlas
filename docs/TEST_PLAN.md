@@ -20,11 +20,15 @@ data), `lab` (Phase 4, local only, no snapshots).
 | T-PIPE-CORES-01 | unit | Cores non-overlapping, inside sections, contiguous cell ranges after Morton ordering | fixture | 1 |
 | T-PIPE-QUANT-01 | unit | uint16 quantization (UMAP per axis, spatial per section, offset + scale in manifest): max round-trip error ≤ 0.5 µm spatial and ≤ 0.1% of the embedding range for UMAP | fixture, ovarian-10x, scale | 1 |
 | T-PIPE-EXPR-01 | unit | Per-gene sparse/dense uint8 encoder round-trips; format picks the smaller; `max_v` stored | fixture | 1 |
-| T-PIPE-ALIGN-01 | integration | Raw image: hematoxylin at 1,000 centroids mapped to H&E px > 1,000 random in-tissue points; effect size + p-value | ovarian-10x | 1 |
-| T-PIPE-ALIGN-02 | integration | Same test on the pre-aligned level-0 pyramid, sampled directly at cell µm positions; manifest holds the source affine and source pixel size | ovarian-10x | 1 |
+| T-PIPE-ALIGN-01 | integration | Raw image: hematoxylin at 1,000 centroids mapped to H&E px > 1,000 random in-tissue points under two tissue definitions (brightfield mask; ≤ 20 µm from a cell centroid): p < 1e-6 and Cohen's d ≥ 0.8 under both; the 25 µm-shifted control fails the rule under both; prints all four results | ovarian-10x, fixture | 1 |
+| T-PIPE-ALIGN-02 | integration | Same test (both tissue definitions, control) on the pre-aligned full-resolution pyramid level, sampled directly at cell µm positions; manifest holds the source affine and source pixel size | ovarian-10x, fixture | 1 |
+| T-PIPE-HE-02 | unit | Tiled warp (blocks, source-window overlap ≥ 8 px) equals a single-pass warp on a small region within 2 levels, on the Lanczos and the box-shrink paths; calls ≥ 32,767 px are refused (ADR-0009 c) | fixture | 1 |
+| T-PIPE-XVER-01 | unit | Unknown `analysis_sw_version` in `experiment.xenium` fails loudly; tested versions pass (ADR-0009 a) | none | 1 |
+| T-PIPE-ORACLE-01 | integration | spatialdata-io (test-only; transcripts, images, labels, boundaries off) matches our reader: cell ids, centroids (< 1e-3 µm), matrix shape, gene ids; opens no `transcripts.*`/`morphology*` (ADR-0009 b) | ovarian-10x | 1 |
 | T-PIPE-HE-01 | unit | H&E warp to µm frame with Lanczos at output pixel size ≤ source; tile geometry, per-core crops, thumbnails, deterministic WebP | fixture | 1 |
 | T-PIPE-REPRO-01 | integration | Two pipeline runs produce byte-identical manifests | ovarian-10x, fixture | 1 |
 | T-PIPE-UMAP-01 | integration | Prints kNN cluster coherence (15 neighbours, share of 10x group) for the provided and the seeded scanpy UMAP and uses the higher; recompute cached under `$DATA_ROOT/derived/` with parameters and hash; a second run reuses the cache and yields identical assets | ovarian-10x | 1 |
+| T-PIPE-UMAP-02 | unit | Cells without an embedding: `has_umap = false` ⇔ NaN coordinates, no invented position, sentinel 65535 in `cells/umap.u16`, `counts.cells_without_umap` in the manifest (513 on ovarian-10x) | fixture, ovarian-10x | 1 |
 | T-PIPE-SIZE-01 | integration | Size report per asset family; `scale` total ≤ 5 GB | scale | 1 |
 | T-PIPE-PALETTE-01 | unit | 23-color palette min pairwise ΔE2000 ≥ 10 under normal, protan, deutan simulation | none | 2 |
 | T-PIPE-PRIV-01 | unit | Private datasets log aggregates only; logging filter rejects cell-level rows | fixture | 1 |
@@ -120,7 +124,7 @@ data), `lab` (Phase 4, local only, no snapshots).
 | FR-G5 | T-E2E-G5-01, T-PIPE-PALETTE-01 | e2e, unit |
 | FR-G6 | T-E2E-G6-01, T-WEB-URL-01, T-WEB-URL-03 | e2e, unit |
 | FR-G7 | T-E2E-G7-01, T-VIS-EXPORT-01, T-BENCH-URL-01, T-WEB-URL-03 | e2e, visual, bench, unit |
-| FR-U1 | T-E2E-U1-01, T-PIPE-QUANT-01, T-BENCH-FPS-01, T-PIPE-UMAP-01 | e2e, unit, bench, integration |
+| FR-U1 | T-E2E-U1-01, T-PIPE-QUANT-01, T-BENCH-FPS-01, T-PIPE-UMAP-01, T-PIPE-UMAP-02 | e2e, unit, bench, integration |
 | FR-U2 | T-E2E-U2-01, T-BENCH-INTER-01 | e2e, bench |
 | FR-U3 | T-E2E-U3-01 | e2e |
 | FR-U4 | T-E2E-U4-01, T-WEB-SEL-01 | e2e, unit |
@@ -129,14 +133,14 @@ data), `lab` (Phase 4, local only, no snapshots).
 | FR-T2 | T-E2E-T2-01 | e2e |
 | FR-T3 | T-E2E-T3-01, T-PIPE-HE-01 | e2e, unit |
 | FR-T4 | T-E2E-T4-01 | e2e (conditional) |
-| FR-C1 | T-E2E-C1-01, T-PIPE-ALIGN-01, T-VIS-ALIGN-01, T-PIPE-ALIGN-02 | e2e, integration, visual |
+| FR-C1 | T-E2E-C1-01, T-PIPE-ALIGN-01, T-VIS-ALIGN-01, T-PIPE-ALIGN-02, T-PIPE-HE-02 | e2e, integration, visual |
 | FR-C2 | T-E2E-C2-01, T-PIPE-HE-01 | e2e, unit |
 | FR-C3 | T-E2E-C3-01, T-BENCH-CORE-01 | e2e, bench |
 | FR-C4 | T-E2E-C4-01 | e2e |
 | FR-C5 | T-E2E-C5-01, T-VIS-ALIGN-01, T-PIPE-ALIGN-02 | e2e, visual, integration |
 | FR-C6 | T-E2E-C6-01 | e2e (conditional) |
 | FR-R1 | T-E2E-R1-01, T-STATIC-REPO-01, T-INT-FRESH-01 | e2e, static, integration |
-| FR-R2 | T-PIPE-DATA-01, T-PIPE-CONTRACT-01, T-PIPE-CONTRACT-02, T-PIPE-GUARD-01, T-INT-FRESH-01 | integration, contract, unit |
+| FR-R2 | T-PIPE-DATA-01, T-PIPE-CONTRACT-01, T-PIPE-CONTRACT-02, T-PIPE-GUARD-01, T-INT-FRESH-01, T-PIPE-XVER-01, T-PIPE-ORACLE-01 | integration, contract, unit |
 | FR-P1 | T-E2E-P1-01 | e2e |
 | FR-P2 | T-E2E-P2-01 | e2e |
 | FR-P3 | T-E2E-P3-01, T-E2E-P3-02, T-E2E-P3-03 | e2e |

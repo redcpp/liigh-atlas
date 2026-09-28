@@ -21,7 +21,8 @@ One row per segmented cell kept in the dataset.
 | `core_id` | string | — | no | ∈ `cores.core_id`; the core's `section_id` equals the cell's |
 | `patient_id` | string | — | no | equals `cores.patient_id` of its core (denormalized for validation) |
 | `x_um`, `y_um` | float64 | µm | no | finite; inside the section bounds; within `radius_um` + 50 µm of its core center (TMA) or inside the core `bbox` (whole tissue) |
-| `umap_x`, `umap_y` | float32 | — (unitless) | no | finite |
+| `umap_x`, `umap_y` | float32 | — (unitless) | yes | finite when `has_umap`; null (NaN) otherwise — never an invented position |
+| `has_umap` | bool | — | no | `false` for cells without an embedding (QC-filtered by the source analysis, e.g. 0 transcripts); such cells stay in the dataset and the spatial views and are excluded from the UMAP view; their count is in the manifest (`counts.cells_without_umap`) and in Methods (Gate 1) |
 | `cluster_id` | string | — | no | ∈ `clusters.cluster_id` |
 | `n_transcripts` | int32 | count | no | ≥ 0; from the source's per-cell total (`transcript_counts` for Xenium); the pipeline compares it with the counts row sum and fails if they disagree for > 0.1% of cells |
 
@@ -111,7 +112,8 @@ alignment matrix (H&E px → Xenium px). The Phase 1 alignment test verifies thi
 ## 8. Validation
 
 Per-table schema checks (types, nulls, ranges, uniqueness) plus cross-entity invariants:
-1. Referential integrity: cells → cores → sections; cells → clusters; expression shape = cells × genes.
+1. Referential integrity: cells → cores → sections; cells → clusters; expression shape = cells × genes;
+   `has_umap` ⇔ both UMAP coordinates finite.
 2. `cells.patient_id` equals its core's `patient_id`; every core has ≥ 1 cell.
 3. Spatial containment: cells inside their core (see `cells`), cores inside their section.
 4. Counts: `n_transcripts` agrees with the counts row sum (≤ 0.1% of cells may differ); `clusters.n_cells` equals the observed counts.
@@ -158,11 +160,13 @@ higher on kNN cluster coherence (TECH_SPEC §2) · H&E Image Alignment CSV → `
 
 Findings from building the adapters on the dev data (`[Diego]` review at the Phase 1 gate):
 
-- **Zero-transcript cells.** 513 of the 407,124 cells have 0 transcripts and are absent from both the
-  10x Cell Groups CSV and the provided UMAP. They are kept (the 10x metrics count them), assigned to
-  10x's own `Unassigned` group, and placed at the median UMAP position of that group in whichever
-  embedding wins. Both UMAP candidates are scored on the 406,611 cells they share. The count is in
-  `dataset.provenance.umap.zero_transcript_cells_placed_at_group_median`.
+- **Cells without an embedding** (Gate 1, `[Diego]`). 513 of the 407,124 dev cells have 0 transcripts
+  and are absent from both the 10x Cell Groups CSV and the provided UMAP. They are kept (the 10x metrics
+  count them) in 10x's own `Unassigned` group with their real centroids, `has_umap = false` and NaN UMAP
+  coordinates. `cells/umap.u16` stores them as the sentinel 65535 (`missing` in the manifest entry;
+  valid values use 0–65534). Both UMAP candidates are scored on the 406,611 cells they share. This is
+  the general rule for every adapter: the lab's annotation table may lack an embedding for QC-filtered
+  cells.
 - **Storage of vector fields.** In canonical tables `center_um`, `bbox`, `bounds_um` are stored as flat
   float columns (`center_x_um`, `bbox_x0`, …) so pandera can type-check them; the assets
   (`cores.json`, `sections.json`) expose them as arrays as specified above.

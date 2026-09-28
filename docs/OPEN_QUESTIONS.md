@@ -23,7 +23,7 @@ requirement.
 | Q10 | May the repo and a demo with public 10x data be public before the paper? | Dany | Public repo/demo | Open | Repo private; public/private split prepared (ADR-0008) |
 | Q11 | Do reviewers need access to the site with real data? | Dany | Phase 4 timing | Answered `[Diego]`: no; screenshots + code (FR-G7, FR-P8) | No reviewer deployment |
 | Q12 | Names and palette of the 23 clusters as used in the paper figures | Estef | FR-G5, NFR-7 | Pending — meeting | Labels from the annotation table; generated color-blind-safe palette |
-| Q13 | Server details: file-count or inode limits (~5K per-gene files + tile pyramids per release), brotli module, deploy access (SSH/rsync), retention of the previous release | Jair | Phase 6 deploy (ADR-0003, ADR-0006) | Open (new) | No file-count limit; gzip only; rsync over SSH; keep one previous release |
+| Q13 | Server details: file-count or inode limits (~5K per-gene files + tile pyramids per release; measured dev build `ovarian-10x`: 11,767 files, 402.3 MB; projected lab TMA build: ≈ 13,800 files and ≈ 0.5 GB per release at 100 cores, ≈ 18,200 files at 150 cores `[Assumption]`), brotli module, deploy access (SSH/rsync), retention of the previous release | Jair | Phase 6 deploy (ADR-0003, ADR-0006) | Open (new) | No file-count limit; gzip only; rsync over SSH; keep one previous release |
 | Q14 | Is the UMAP one integrated embedding across all sections (batch-corrected) or one per section? | Estef | Phase 4 (FR-U1 on lab data) | Open (new) | One integrated UMAP in the annotation table |
 | Q15 | Normalization used for expression in the paper figures (Seurat LogNormalize, SCTransform, other) | Estef | Phase 4 (FR-G3 parity with figures) | Open (new) | `log1p(counts / total × 10⁴)` (Seurat LogNormalize default), configurable |
 | Q16 | Authors and citation text for the site before the paper exists | Dany | FR-P1, FR-P4 content | Open (new) | Cite the software (repo, later Zenodo DOI) with "manuscript in preparation" |
@@ -59,5 +59,23 @@ time is used only for scope and publication decisions.
 
 Held until Phase 6, sent with `docs/DEPLOY.md`.
 1. **Q8** Confirm server, subdomain `atlas.liigh.unam.mx` and quota ≥ 10 GB.
-2. **Q13** File-count or inode limits (~5K per-gene files + H&E tiles per release); brotli module or gzip
+2. **Q13** File-count or inode limits (~5K per-gene files + H&E tiles per release; dev build measured at
+   11,767 files / 402.3 MB, lab TMA projected at ≈ 13,800 files / ≈ 0.5 GB per release, see the note below); brotli module or gzip
    only; upload access (SSH/rsync); how many previous releases to keep.
+
+## Q13 projection (for Jair, Phase 6)
+
+Measured `[Diego]` (Phase 1, `ovarian-10x` release `681e291a3964`; after the Gate 1 changes `77b97a69f5a1`: 11,767 files, 402.35 MB): 11,767 files, 402.3 MB —
+5,101 per-gene expression files (161.4 MB), 6,652 H&E tiles (233.8 MB), 14 other files.
+
+Projected lab TMA release `[Assumption]` (inputs: ~5,000 genes, 100+ cores of 1 mm, H&E at 0.270 µm/px,
+512 px tiles, 35 KB per tile as measured): each core crop is 1,100 µm → 4,075 px → 4 levels of
+64 + 16 + 4 + 1 = 85 tiles, plus `pyramid.json` and a thumbnail = 87 files per core.
+
+| Cores | Expression | H&E files | Other | Total files | Size |
+|---|---|---|---|---|---|
+| 100 | ~5,100 | 8,700 | ~15 | ≈ 13,800 | ≈ 0.5 GB |
+| 150 | ~5,100 | 13,050 | ~15 | ≈ 18,200 | ≈ 0.65 GB |
+
+Two releases kept on disk (current + previous, ADR-0006) double these numbers.
+
